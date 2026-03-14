@@ -25,6 +25,11 @@
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
+  // Spécifier la région europe-west3
+  db.settings({ 
+    experimentalForceLongPolling: true,
+    merge: true
+  });
   const auth = firebase.auth();
 
   // Expose globally
