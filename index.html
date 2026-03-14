@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="theme-color" content="#0d0d0d"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="Break Antillais"/>
+<title>Break Antillais 🌴</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+<!-- ═══════════════════════════════════════════
+     🔥 FIREBASE CONFIG — REMPLACEZ ICI
+     ═══════════════════════════════════════════ -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, query, orderBy, where, serverTimestamp, enableNetwork }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  // ⬇️ COLLEZ VOS CLÉS FIREBASE ICI (voir guide d'installation)
+  const firebaseConfig = {
+    apiKey: "AIzaSyDdMXomLpSXhca5lLUldGHRtUi0k7mXWTY",
+    authDomain: "application-break-antillais.firebaseapp.com",
+    databaseURL: "https://application-break-antillais-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "application-break-antillais",
+    storageBucket: "application-break-antillais.firebasestorage.app",
+    messagingSenderId: "788821898426",
+    appId: "1:788821898426:web:0de8466a653123ea407e83"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  // Force network on
+  enableNetwork(db).catch(()=>{});
+  // Expose to global scope for the rest of the app
+  window.firebaseDB = db;
+  window.firebaseAuth = auth;
+  window.firebaseFns = { collection, doc, setDoc, getDoc, getDocs, onSnapshot, query, orderBy, where, serverTimestamp, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, enableNetwork };
+
+  // Auth state listener
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      // Retry up to 5 times waiting for network
+      let userDoc = null;
+      for (let i = 0; i < 5; i++) {
+        try {
+          userDoc = await getDoc(doc(db, 'users', user.uid));
+          break;
+        } catch(e) {
+          await new Promise(r => setTimeout(r, 1500));
+        }
+      }
+      if (userDoc && userDoc.exists()) {
+        window._currentUser = { id: user.uid, ...userDoc.data() };
+      }
+    } else {
+      window._currentUser = null;
+    }
+    if (window.onAuthReady) window.onAuthReady(window._currentUser);
+  });
+
+  // Wait for network before triggering auth
+  async function initWithNetwork() {
+    try {
+      await enableNetwork(db);
+    } catch(e) {}
+    // Now safe to check auth state
+    window.firebaseReady = true;
+    document.dispatchEvent(new Event('firebaseReady'));
+  }
+  initWithNetwork();
+</script>
+
+<style>
+/* ═══ STYLES (identiques à la démo locale) ═══ */
+:root{--gold:#D4AF37;--gold-light:#F0D060;--green:#1a6b3c;--red:#c0392b;--dark:#0d0d0d;--dark2:#1a1a1a;--dark3:#242424;--dark4:#2e2e2e;--text:#f0ece4;--text-muted:#9a9080;--border:rgba(212,175,55,0.2);--radius:16px;--radius-sm:10px;--font-head:'Syne',sans-serif;--font-body:'DM Sans',sans-serif}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}body{background:var(--dark);color:var(--text);font-family:var(--font-body);min-height:100vh;overflow-x:hidden}
+@keyframes fadeUp{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes slideOut{from{opacity:1}to{opacity:0;transform:translateX(100%)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes glow{0%,100%{box-shadow:0 0 12px rgba(212,175,55,.3)}50%{box-shadow:0 0 24px rgba(212,175,55,.7)}}
+.screen{display:none;min-height:100vh;animation:fadeIn .3s ease}.screen.active{display:block}
+.app-header{background:linear-gradient(180deg,var(--dark2) 0%,transparent 100%);padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.app-logo{font-family:var(--font-head);font-weight:800;font-size:1.3rem;letter-spacing:-.02em;color:var(--gold)}.app-logo span{color:var(--text)}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--dark2);border-top:1px solid var(--border);display:flex;z-index:200;padding-bottom:env(safe-area-inset-bottom)}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:.7rem .5rem;cursor:pointer;border:none;background:none;color:var(--text-muted);font-size:.68rem;font-family:var(--font-body);font-weight:500;gap:.25rem;transition:color .2s;position:relative}
+.nav-item.active{color:var(--gold)}.nav-item svg{width:22px;height:22px}
+.nav-badge{position:absolute;top:6px;right:calc(50% - 16px);background:var(--red);color:#fff;font-size:.6rem;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.8rem 1.5rem;border-radius:var(--radius-sm);border:none;cursor:pointer;font-family:var(--font-body);font-weight:600;font-size:.9rem;transition:all .2s}
+.btn-primary{background:linear-gradient(135deg,var(--gold),var(--gold-light));color:var(--dark)}.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(212,175,55,.4)}
+.btn-secondary{background:rgba(255,255,255,.04);color:var(--text);border:1px solid var(--border)}.btn-secondary:hover{background:rgba(255,255,255,.08)}
+.btn-danger{background:var(--red);color:#fff}.btn-success{background:var(--green);color:#fff}
+.btn-full{width:100%}.btn-sm{padding:.5rem 1rem;font-size:.82rem}.btn:disabled{opacity:.5;cursor:not-allowed}
+.card{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+.form-group{display:flex;flex-direction:column;gap:.4rem;margin-bottom:1rem}
+.form-label{font-size:.82rem;font-weight:600;color:var(--text-muted);letter-spacing:.02em;text-transform:uppercase}
+.form-input,.form-select,.form-textarea{background:var(--dark3);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:.95rem;width:100%;transition:border-color .2s;outline:none}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.15)}
+.form-input::placeholder{color:var(--text-muted)}.form-textarea{resize:vertical;min-height:100px}
+.form-select option{background:var(--dark3)}.form-error{color:#ef4444;font-size:.82rem;display:none}.form-error.show{display:block}
+.hero{position:relative;overflow:hidden;padding:4rem 1.5rem 3rem;text-align:center}
+.hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(212,175,55,.15) 0%,transparent 70%),radial-gradient(ellipse at 0% 100%,rgba(26,107,60,.2) 0%,transparent 60%)}
+.hero-title{font-family:var(--font-head);font-size:2.8rem;font-weight:800;line-height:1.1;letter-spacing:-.03em;position:relative}
+.hero-title .accent{color:var(--gold)}.hero-subtitle{font-size:1rem;color:var(--text-muted);margin-top:.75rem;position:relative}
+.hero-badge{display:inline-flex;align-items:center;background:rgba(212,175,55,.12);border:1px solid rgba(212,175,55,.3);border-radius:100px;padding:.35rem .85rem;font-size:.78rem;font-weight:600;color:var(--gold);margin-bottom:1rem;position:relative}
+.section-title{font-family:var(--font-head);font-size:1.3rem;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.product-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;padding:0 1rem 1rem}
+.product-card{background:var(--dark3);border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all .2s}
+.product-card:hover{border-color:var(--gold);transform:translateY(-2px)}.product-card.unavailable{opacity:.5;cursor:default}
+.product-img{width:100%;height:110px;background:var(--dark4);display:flex;align-items:center;justify-content:center;font-size:2.5rem}
+.product-info{padding:.75rem}.product-name{font-weight:600;font-size:.88rem;line-height:1.3;margin-bottom:.25rem}
+.product-desc{font-size:.75rem;color:var(--text-muted);margin-bottom:.4rem}.product-price{font-family:var(--font-head);font-weight:700;color:var(--gold);font-size:1rem}
+.coming-soon-badge{position:absolute;top:.5rem;right:.5rem;background:var(--red);color:#fff;font-size:.65rem;font-weight:700;padding:.2rem .5rem;border-radius:100px;text-transform:uppercase}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:500;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .2s ease}
+.modal{background:var(--dark2);border:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;width:100%;max-width:540px;max-height:92vh;overflow-y:auto;padding:1.5rem;animation:fadeUp .3s ease}
+.modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 1.25rem}
+.modal-title{font-family:var(--font-head);font-size:1.4rem;font-weight:700;margin-bottom:1.25rem}
+.chips-grid{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem}
+.chip{padding:.45rem .9rem;border:1.5px solid var(--border);border-radius:100px;font-size:.82rem;font-weight:500;cursor:pointer;transition:all .15s;background:transparent;color:var(--text)}
+.chip:hover{border-color:var(--gold);color:var(--gold)}.chip.selected{background:var(--gold);color:var(--dark);border-color:var(--gold);font-weight:700}
+.cart-item{display:flex;align-items:flex-start;gap:1rem;padding:1rem 0;border-bottom:1px solid var(--border)}
+.cart-item-info{flex:1}.cart-item-name{font-weight:600;font-size:.9rem;margin-bottom:.2rem}.cart-item-details{font-size:.78rem;color:var(--text-muted)}
+.cart-item-price{font-family:var(--font-head);font-weight:700;color:var(--gold);white-space:nowrap}
+.cart-empty{text-align:center;padding:3rem 1rem;color:var(--text-muted)}
+.points-card{background:linear-gradient(135deg,var(--green) 0%,#0f4a2a 100%);border-radius:var(--radius);padding:1.5rem;position:relative;overflow:hidden}
+.points-value{font-family:var(--font-head);font-size:3rem;font-weight:800;color:var(--gold);line-height:1}
+.status-badge{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .8rem;border-radius:100px;font-size:.78rem;font-weight:700}
+.slot-btn{padding:.7rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--dark3);color:var(--text);font-family:var(--font-body);font-weight:600;font-size:.9rem;cursor:pointer;transition:all .15s;text-align:center}
+.slot-btn:hover:not(.full){border-color:var(--gold);color:var(--gold)}.slot-btn.selected{background:var(--gold);color:var(--dark);border-color:var(--gold)}.slot-btn.full{opacity:.35;cursor:not-allowed}
+.tabs{display:flex;gap:.5rem;overflow-x:auto;padding:0 1rem;margin-bottom:1rem;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tab-btn{padding:.5rem 1rem;border:1.5px solid var(--border);border-radius:100px;background:transparent;color:var(--text-muted);font-family:var(--font-body);font-weight:600;font-size:.82rem;cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0}
+.tab-btn.active{background:var(--gold);color:var(--dark);border-color:var(--gold)}
+.divider{height:1px;background:var(--border);margin:1.25rem 0}
+.avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--green));display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--dark);flex-shrink:0}
+.promo-card{background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid rgba(192,57,43,.4);border-radius:var(--radius);padding:1.25rem;margin-bottom:.75rem}
+.badge-new{background:var(--red);color:#fff;font-size:.65rem;font-weight:700;padding:.2rem .6rem;border-radius:100px;display:inline-block;margin-bottom:.5rem;text-transform:uppercase}
+.admin-nav{display:flex;flex-wrap:wrap;gap:.5rem;padding:1rem}
+.admin-nav-btn{flex:1;min-width:90px;padding:.75rem .5rem;background:var(--dark3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-body);font-weight:600;font-size:.78rem;cursor:pointer;text-align:center;transition:all .15s}
+.admin-nav-btn:hover,.admin-nav-btn.active{border-color:var(--gold);color:var(--gold)}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;padding:0 1rem}
+.stat-card{background:var(--dark3);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;text-align:center}
+.stat-value{font-family:var(--font-head);font-size:1.6rem;font-weight:800;color:var(--gold)}.stat-label{font-size:.75rem;color:var(--text-muted);margin-top:.2rem}
+.payment-option{display:flex;align-items:center;gap:1rem;padding:1rem;border:2px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:all .15s;margin-bottom:.75rem}
+.payment-option:hover{border-color:var(--gold)}.payment-option.selected{border-color:var(--gold);background:rgba(212,175,55,.08)}
+.spinner{width:40px;height:40px;border:3px solid rgba(212,175,55,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
+.text-gold{color:var(--gold)}.text-muted{color:var(--text-muted)}.text-center{text-align:center}.text-sm{font-size:.82rem}.font-head{font-family:var(--font-head)}.fw-700{font-weight:700}
+.mt-1{margin-top:.5rem}.mt-2{margin-top:1rem}.mt-3{margin-top:1.5rem}.mb-1{margin-bottom:.5rem}.mb-2{margin-bottom:1rem}.hidden{display:none!important}.w-full{width:100%}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--dark)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+@media(max-width:375px){.hero-title{font-size:2.2rem}.product-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div id="loading-screen" style="position:fixed;inset:0;background:var(--dark);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999">
+  <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--gold);margin-bottom:1.5rem">Break<span style="color:#f0ece4">Antillais</span></div>
+  <div class="spinner"></div>
+  <p style="margin-top:1rem;color:var(--text-muted);font-size:.85rem">Chargement...</p>
+</div>
+
+<div id="screen-home" class="screen active" style="display:none">
+  <div class="app-header">
+    <span class="app-logo">Break<span>Antillais</span></span>
+    <div id="header-auth"><button class="btn btn-primary btn-sm" onclick="showLogin()">Connexion</button></div>
+  </div>
+  <div id="home-content"></div>
+</div>
+
+<div id="screen-cart" class="screen"></div>
+<div id="screen-orders" class="screen"></div>
+<div id="screen-profile" class="screen"></div>
+
+<nav class="bottom-nav">
+  <button class="nav-item active" data-screen="home" onclick="navTo('home')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    Menu
+  </button>
+  <button class="nav-item" data-screen="cart" onclick="navTo('cart')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
+    Panier
+    <span class="nav-badge" id="cart-badge" style="display:none">0</span>
+  </button>
+  <button class="nav-item" data-screen="orders" onclick="navTo('orders')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+    Commandes
+  </button>
+  <button class="nav-item" data-screen="profile" onclick="navTo('profile')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <span id="nav-profile-label">Profil</span>
+    <span class="nav-badge" id="notif-badge" style="display:none">0</span>
+  </button>
+</nav>
+
+<div id="modal-auth" style="display:none;position:fixed;inset:0;z-index:600"></div>
+<div id="modal-product" style="display:none;position:fixed;inset:0;z-index:550"></div>
+<div id="toast-wrap" style="position:fixed;top:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:.5rem;max-width:320px;pointer-events:none"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// BREAK ANTILLAIS — Version Firebase (temps réel)
+// ═══════════════════════════════════════════════════════════
+
+var SAUCES = ['Ketchup','Mayonnaise','Moutarde','Sauce piquante','Sauce cocktail','Sauce blanche','Harissa','Sans sauce'];
+var CRUDITES = ['Salade','Tomate','Oignon','Tout (salade+tomate+oignon)','Sans crudites'];
+var MEATS = ['Jambon','Poulet','Steak','Thon','Saucisse','Merguez','Kebab'];
+var CAT_EMOJI = {bokit:'🫓',crepe_salee:'🥞',crepe_sucree:'🍫',agoulou:'🌯',boisson:'🥤'};
+
+var STATUS_INFO = {
+  pending:{label:'En attente',icon:'⏳',color:'#f59e0b'},
+  confirmed:{label:'Commande validee',icon:'✅',color:'#10b981'},
+  preparing:{label:'En preparation',icon:'👨‍🍳',color:'#3b82f6'},
+  ready:{label:'Commande prete !',icon:'🎉',color:'#8b5cf6'},
+  picked_up:{label:'Recuperee',icon:'✅',color:'#6b7280'},
+  cancelled:{label:'Annulee',icon:'❌',color:'#ef4444'}
+};
+
+var DEFAULT_PRODUCTS = [
+  {id:'b1',category:'bokit',name:'Bokit Jambon Fromage',price:6.50,available:true,image:null,description:'Jambon, fromage'},
+  {id:'b2',category:'bokit',name:'Bokit Poulet',price:6.50,available:true,image:null,description:'Poulet marine'},
+  {id:'b3',category:'bokit',name:'Bokit Steak',price:7.00,available:true,image:null,description:'Steak hache'},
+  {id:'b4',category:'bokit',name:'Bokit Thon Crudites',price:6.50,available:true,image:null,description:'Thon, crudites'},
+  {id:'b5',category:'bokit',name:'Bokit Saucisse Fromage',price:6.50,available:true,image:null,description:'Saucisse, fromage'},
+  {id:'b6',category:'bokit',name:'Bokit Kebab',price:7.00,available:true,image:null,description:'Viande kebab'},
+  {id:'b7',category:'bokit',name:'Bokit Merguez',price:7.00,available:true,image:null,description:'Merguez grillee'},
+  {id:'b8',category:'bokit',name:'Bokit Complet 1 Viande',price:7.50,available:true,image:null,description:'Oeuf, fromage + 1 viande au choix'},
+  {id:'b9',category:'bokit',name:'Bokit Complet 2 Viandes',price:8.50,available:true,image:null,description:'Oeuf, fromage + 2 viandes au choix'},
+  {id:'b10',category:'bokit',name:'Bokit Complet 3 Viandes',price:9.50,available:true,image:null,description:'Oeuf, fromage + 3 viandes au choix'},
+  {id:'c1',category:'crepe_salee',name:'Crepe Jambon Fromage',price:5.50,available:true,image:null,description:'Jambon, fromage'},
+  {id:'c2',category:'crepe_salee',name:'Crepe Complete 1 Viande',price:6.00,available:true,image:null,description:'Oeuf, fromage + 1 viande'},
+  {id:'c3',category:'crepe_salee',name:'Crepe Complete 2 Viandes',price:7.00,available:true,image:null,description:'Oeuf, fromage + 2 viandes'},
+  {id:'c4',category:'crepe_salee',name:'Crepe Complete 3 Viandes',price:8.00,available:true,image:null,description:'Oeuf, fromage + 3 viandes'},
+  {id:'c5',category:'crepe_sucree',name:'Crepe Nutella',price:4.00,available:true,image:null,description:'Nutella genereux'},
+  {id:'c6',category:'crepe_sucree',name:'Crepe Caramel Beurre Sale',price:4.00,available:true,image:null,description:'Caramel beurre sale maison'},
+  {id:'d1',category:'boisson',name:'Ordinaire',price:1.50,available:true,image:null,description:'Eau plate'},
+  {id:'d2',category:'boisson',name:'Coca-Cola',price:2.00,available:true,image:null,description:'33cl'},
+  {id:'d3',category:'boisson',name:'Colorado Peche Mangue',price:2.00,available:true,image:null,description:'33cl'},
+  {id:'d4',category:'boisson',name:'Colorado Peche Menthe',price:2.00,available:true,image:null,description:'33cl'},
+  {id:'d5',category:'boisson',name:'Royal Soda Kampagne',price:2.00,available:true,image:null,description:'33cl'},
+  {id:'d6',category:'boisson',name:'Royal Soda Grenadine',price:2.00,available:true,image:null,description:'33cl'},
+  {id:'a1',category:'agoulou',name:'Agoulou 2 Viandes',price:9.00,available:false,image:null,description:'Prochainement',comingSoon:true},
+  {id:'a2',category:'agoulou',name:'Agoulou 3 Viandes',price:10.00,available:false,image:null,description:'Prochainement',comingSoon:true},
+  {id:'a3',category:'agoulou',name:'Agoulou 4 Viandes',price:11.00,available:false,image:null,description:'Prochainement',comingSoon:true}
+];
+
+var DEFAULT_CFG = {
+  orderCutoffTime:'17:00',pickupStart:'19:00',pickupEnd:'22:00',
+  pickupAddress:'37 avenue Lenine, 37700 St-Pierre-des-Corps',
+  maxOrdersPerSlot:8,pointsPerEuro:10,signupBonusPoints:50,
+  orderConfirmMessage:'Bonjour {prenom} !\n\nMerci pour votre commande chez Break Antillais !\n\nCommande n\u00b0{orderNumber}\n{items}\n\nTotal : {total}\nRetrait : {pickupTime}\nAdresse : {address}\nReglement : {payment}\n\nA tout a l\'heure ! 🌴',
+  birthday_offer_days:30,
+  cgv:'CONDITIONS GENERALES DE VENTE\n\nBreak Antillais\nLes commandes sont acceptees jusqu\'a 17h. Retrait de 19h a 22h au 37 avenue Lenine, 37700 St-Pierre-des-Corps.\nPaiement au retrait (carte ou especes).',
+  rgpd:'POLITIQUE DE CONFIDENTIALITE\n\nBreak Antillais collecte votre prenom, email, telephone et historique de commandes pour la gestion des commandes et du programme de fidelite. Conservation 3 ans. Contact : contact@break-antillais.fr'
+};
+
+// ═══════════════════════════════════════════
+// FIREBASE DATA LAYER
+// ═══════════════════════════════════════════
+var _cfg = null;
+var _products = null;
+var _orders = [];
+var _users = {};
+var cart = [];
+var currentScreen = 'home';
+var _unsubOrders = null;
+var _unsubCfg = null;
+
+function fmt(p){return typeof p==='number'?p.toFixed(2).replace('.',',')+'\u20ac':p;}
+function genId(){return Date.now().toString(36)+Math.random().toString(36).substr(2);}
+
+function getCurrentUser(){
+  return window._currentUser || null;
+}
+
+async function fbSaveDoc(collection, id, data) {
+  var db = window.firebaseDB;
+  var fns = window.firebaseFns;
+  await fns.setDoc(fns.doc(db, collection, id), data, {merge: true});
+}
+
+async function fbGetDoc(col, id) {
+  var db = window.firebaseDB;
+  var fns = window.firebaseFns;
+  for (var attempt = 0; attempt < 5; attempt++) {
+    try {
+      var snap = await fns.getDoc(fns.doc(db, col, id));
+      return snap.exists() ? {id: snap.id, ...snap.data()} : null;
+    } catch(e) {
+      if (e.message && e.message.indexOf('offline') >= 0) {
+        await new Promise(function(r){setTimeout(r, 2000);});
+      } else if (attempt < 4) {
+        await new Promise(function(r){setTimeout(r, 1000);});
+      } else {
+        console.warn('fbGetDoc failed after retries:', e.message);
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+async function fbGetCollection(col) {
+  var db = window.firebaseDB;
+  var fns = window.firebaseFns;
+  for (var attempt = 0; attempt < 5; attempt++) {
+    try {
+      var snap = await fns.getDocs(fns.collection(db, col));
+      var results = [];
+      snap.forEach(function(d){results.push({id: d.id, ...d.data()});});
+      return results;
+    } catch(e) {
+      if (attempt < 4) {
+        await new Promise(function(r){setTimeout(r, 2000);});
+      } else {
+        console.warn('fbGetCollection failed:', e.message);
+        return [];
+      }
+    }
+  }
+  return [];
+}
+
+async function getCfg() {
+  if (_cfg) return _cfg;
+  var saved = await fbGetDoc('config', 'main');
+  _cfg = saved || DEFAULT_CFG;
+  return _cfg;
+}
+
+async function getProducts() {
+  if (_products) return _products;
+  var saved = await fbGetCollection('products');
+  if (saved.length > 0) {
+    _products = saved;
+  } else {
+    // First run: seed products
+    _products = DEFAULT_PRODUCTS;
+    for (var p of DEFAULT_PRODUCTS) {
+      await fbSaveDoc('products', p.id, p);
+    }
+  }
+  return _products;
+}
+
+async function saveOrder(order) {
+  await fbSaveDoc('orders', order.id, order);
+  window.dispatchEvent(new CustomEvent('orderUpdated', {detail: order}));
+}
+
+async function saveUser(user) {
+  await fbSaveDoc('users', user.id, user);
+  if (getCurrentUser() && getCurrentUser().id === user.id) {
+    window._currentUser = user;
+  }
+}
+
+// Subscribe to orders in real-time
+function subscribeOrders(callback) {
+  var db = window.firebaseDB;
+  var fns = window.firebaseFns;
+  if (_unsubOrders) _unsubOrders();
+  var q = fns.query(fns.collection(db, 'orders'), fns.orderBy('createdAt', 'desc'));
+  _unsubOrders = fns.onSnapshot(q, function(snap) {
+    _orders = [];
+    snap.forEach(function(d){_orders.push({id: d.id, ...d.data()});});
+    if (callback) callback(_orders);
+  });
+}
+
+function subscribeConfig(callback) {
+  var db = window.firebaseDB;
+  var fns = window.firebaseFns;
+  if (_unsubCfg) _unsubCfg();
+  _unsubCfg = fns.onSnapshot(fns.doc(db, 'config', 'main'), function(snap) {
+    if (snap.exists()) {
+      _cfg = snap.data();
+      if (callback) callback(_cfg);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════
+// TOAST & UI HELPERS
+// ═══════════════════════════════════════════
+function toast(msg, type, dur) {
+  var wrap = document.getElementById('toast-wrap');
+  if (!wrap) return;
+  var el = document.createElement('div');
+  var colors = {success:'#10b981',error:'#ef4444',info:'#3b82f6',warning:'#f59e0b'};
+  el.style.cssText = 'background:'+(colors[type]||colors.info)+';color:#fff;padding:.75rem 1.25rem;border-radius:12px;font-family:inherit;font-size:.9rem;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.4);animation:slideIn .3s ease;pointer-events:auto;';
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(function(){el.style.animation='slideOut .3s ease';setTimeout(function(){if(el.parentNode)el.remove();},300);},(dur||3500));
+}
+
+function closeModal(id) {
+  var el = document.getElementById(id || 'modal-product');
+  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+}
+
+function navTo(id) {
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  var sc = document.getElementById('screen-'+id);
+  if (sc) sc.classList.add('active');
+  currentScreen = id;
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+  var ni = document.querySelector('.nav-item[data-screen="'+id+'"]');
+  if (ni) ni.classList.add('active');
+  window.scrollTo(0, 0);
+  updateNavBadges();
+  if (id === 'cart') renderCart();
+  if (id === 'orders') renderOrders();
+  if (id === 'profile') renderProfile();
+}
+
+function updateNavBadges() {
+  var badge = document.getElementById('cart-badge');
+  var total = cart.reduce(function(s,i){return s+i.qty;}, 0);
+  if (badge) { badge.textContent = total; badge.style.display = total > 0 ? 'flex' : 'none'; }
+  var user = getCurrentUser();
+  var nb = document.getElementById('notif-badge');
+  if (nb && user) {
+    var unread = (user.notifications||[]).filter(function(n){return !n.read;}).length;
+    nb.textContent = unread; nb.style.display = unread > 0 ? 'flex' : 'none';
+  } else if (nb) { nb.style.display = 'none'; }
+}
+
+async function notify(userId, title, body) {
+  var userData = await fbGetDoc('users', userId);
+  if (!userData) return;
+  if (!userData.notifications) userData.notifications = [];
+  userData.notifications.unshift({id:genId(),title,body,read:false,at:new Date().toISOString()});
+  if (userData.notifications.length > 50) userData.notifications = userData.notifications.slice(0, 50);
+  await saveUser(userData);
+  var cur = getCurrentUser();
+  if (cur && cur.id === userId) {
+    window._currentUser = userData;
+    toast(title + ': ' + body, 'info', 5000);
+    updateNavBadges();
+  }
+}
+
+function updateHeaderAuth() {
+  var user = getCurrentUser();
+  var el = document.getElementById('header-auth');
+  if (!el) return;
+  if (user && user.role !== 'admin') {
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:.5rem"><div class="avatar" style="width:34px;height:34px;font-size:.85rem;cursor:pointer" onclick="navTo(\'profile\')">'+user.prenom[0].toUpperCase()+'</div></div>';
+  } else if (user && user.role === 'admin') {
+    el.innerHTML = '<span style="font-size:.8rem;color:var(--gold);font-weight:700">ADMIN</span>';
+    var lbl = document.getElementById('nav-profile-label');
+    if (lbl) lbl.textContent = 'Admin';
+  } else {
+    el.innerHTML = '<button class="btn btn-primary btn-sm" onclick="showLogin()">Connexion</button>';
+    var lbl2 = document.getElementById('nav-profile-label');
+    if (lbl2) lbl2.textContent = 'Profil';
+  }
+}
+
+// ═══════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════
+function showLogin() {
+  var modal = document.getElementById('modal-auth');
+  modal.style.display = 'block';
+  modal.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeModal(\'modal-auth\')">'
+    + '<div class="modal"><div class="modal-handle"></div>'
+    + '<h2 class="modal-title">Connexion 🌴</h2>'
+    + '<div class="form-group"><label class="form-label">Email</label><input class="form-input" id="li-email" type="email" placeholder="votre@email.fr"/></div>'
+    + '<div class="form-group"><label class="form-label">Mot de passe</label><input class="form-input" id="li-pwd" type="password" placeholder="••••••••"/><span class="form-error" id="li-err"></span></div>'
+    + '<div style="text-align:right;margin-bottom:.75rem"><button style="background:none;color:var(--gold);border:none;cursor:pointer;font-size:.85rem;font-weight:600" onclick="showForgotPwd()">Mot de passe oublie ?</button></div>'
+    + '<button class="btn btn-primary btn-full" onclick="doLogin()">Se connecter</button>'
+    + '<div style="height:1px;background:var(--border);margin:1.25rem 0"></div>'
+    + '<p class="text-center text-sm text-muted">Pas de compte ? <button style="background:none;color:var(--gold);border:none;cursor:pointer;font-size:.85rem;font-weight:600" onclick="showRegister()">S\'inscrire</button></p>'
+    + '</div></div>';
+}
+
+function showRegister() {
+  var modal = document.getElementById('modal-auth');
+  modal.style.display = 'block';
+  modal.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeModal(\'modal-auth\')">'
+    + '<div class="modal"><div class="modal-handle"></div>'
+    + '<h2 class="modal-title">Creer un compte</h2>'
+    + '<div class="form-group"><label class="form-label">Prenom</label><input class="form-input" id="rg-prenom" type="text"/><span class="form-error" id="rg-prenom-err"></span></div>'
+    + '<div class="form-group"><label class="form-label">Telephone</label><input class="form-input" id="rg-phone" type="tel" placeholder="06 xx xx xx xx"/><span class="form-error" id="rg-phone-err"></span></div>'
+    + '<div class="form-group"><label class="form-label">Date de naissance</label><input class="form-input" id="rg-bday" type="date"/></div>'
+    + '<div class="form-group"><label class="form-label">Email</label><input class="form-input" id="rg-email" type="email" placeholder="votre@email.fr"/><span class="form-error" id="rg-email-err"></span></div>'
+    + '<div class="form-group"><label class="form-label">Mot de passe</label><input class="form-input" id="rg-pwd" type="password" placeholder="Min. 6 caracteres"/><span class="form-error" id="rg-pwd-err"></span></div>'
+    + '<div class="form-group"><label class="form-label">Confirmer</label><input class="form-input" id="rg-pwd2" type="password"/><span class="form-error" id="rg-pwd2-err"></span></div>'
+    + '<div class="form-group"><label style="display:flex;align-items:flex-start;gap:.5rem;cursor:pointer"><input type="checkbox" id="rg-cgv" style="margin-top:.2rem;accent-color:var(--gold)"/><span class="text-sm text-muted">J\'accepte les <a href="#" onclick="showCGV();return false" style="color:var(--gold)">CGV</a> et la <a href="#" onclick="showRGPD();return false" style="color:var(--gold)">politique RGPD</a></span></label><span class="form-error" id="rg-cgv-err"></span></div>'
+    + '<button class="btn btn-primary btn-full" onclick="doRegister()">Creer mon compte</button>'
+    + '<div style="height:1px;background:var(--border);margin:1.25rem 0"></div>'
+    + '<p class="text-center text-sm text-muted">Deja un compte ? <button style="background:none;color:var(--gold);border:none;cursor:pointer;font-size:.85rem;font-weight:600" onclick="showLogin()">Se connecter</button></p>'
+    + '</div></div>';
+}
+
+function showForgotPwd() {
+  var modal = document.getElementById('modal-auth');
+  modal.style.display = 'block';
+  modal.innerHTML = '<div class="modal-overlay" onclick="if(event.target===this)closeModal(\'modal-auth\')">'
+    + '<div class="modal"><div class="modal-handle"></div>'
+    + '<h2 class="modal-title">Mot de passe oublie</h2>'
+    + '<div class="form-group"><label class="form-label">Email</label><input class="form-input" id="fp-email" type="email" placeholder="votre@email.fr"/><span class="form-error" id="fp-err"></span></div>'
+    + '<button class="btn btn-primary btn-full" onclick="doForgotPwd()">Envoyer le lien</button>'
+    + '<div class="mt-2 text-center"><button style="background:none;color:var(--text-muted);border:none;cursor:pointer;font-size:.85rem" onclick="showLogin()">Retour</button></div>'
+    + '</div></div>';
+}
+
+async function doForgotPwd() {
+  var email = document.getElementById('fp-email').value.trim();
+  if (!email) { showErr('fp-err', 'Email requis'); return; }
+  try {
+    await window.firebaseFns.sendPasswordResetEmail(window.firebaseAuth, email);
+    toast('Email de reinitialisation envoye a ' + email, 'success', 5000);
+    closeModal('modal-auth');
+  } catch(e) {
+    showErr('fp-err', 'Aucun compte avec cet email');
+  }
+}
+
+async function doLogin() {
+  var email = document.getElementById('li-email').value.trim().toLowerCase();
+  var pwd = document.getElementById('li-pwd').value;
+  var err = document.getElementById('li-err');
+  if (!email || !pwd) { if(err){err.textContent='Champs requis';err.classList.add('show');} return; }
+  try {
+    var cred = await window.firebaseFns.signInWithEmailAndPassword(window.firebaseAuth, email, pwd);
+    var userData = await fbGetDoc('users', cred.user.uid);
+    if (!userData) { if(err){err.textContent='Compte introuvable';err.classList.add('show');} return; }
+    window._currentUser = userData;
+    closeModal('modal-auth');
+    updateHeaderAuth();
+    updateNavBadges();
+    renderHomeScreen();
+    toast('Bienvenue ' + userData.prenom + ' ! 🌴', 'success');
+  } catch(e) {
+    if (err) { err.textContent = 'Email ou mot de passe incorrect'; err.classList.add('show'); }
+  }
+}
+
+async function doRegister() {
+  var prenom = document.getElementById('rg-prenom').value.trim();
+  var phone = document.getElementById('rg-phone').value.trim().replace(/\s/g,'');
+  var email = document.getElementById('rg-email').value.trim().toLowerCase();
+  var pwd = document.getElementById('rg-pwd').value;
+  var pwd2 = document.getElementById('rg-pwd2').value;
+  var bday = document.getElementById('rg-bday').value;
+  var cgv = document.getElementById('rg-cgv').checked;
+  document.querySelectorAll('.form-error').forEach(function(e){e.textContent='';e.classList.remove('show');});
+  var ok = true;
+  function setErr(id,msg){var el=document.getElementById(id);if(el){el.textContent=msg;el.classList.add('show');}ok=false;}
+  if (!prenom) setErr('rg-prenom-err','Prenom requis');
+  if (!phone || phone.length < 10) setErr('rg-phone-err','Telephone invalide');
+  if (!email || email.indexOf('@') < 0) setErr('rg-email-err','Email invalide');
+  if (!pwd || pwd.length < 6) setErr('rg-pwd-err','Min. 6 caracteres');
+  if (pwd !== pwd2) setErr('rg-pwd2-err','Mots de passe differents');
+  if (!cgv) setErr('rg-cgv-err','Acceptez les CGV');
+  if (!ok) return;
+  try {
+    var cfg = await getCfg();
+    var cred = await window.firebaseFns.createUserWithEmailAndPassword(window.firebaseAuth, email, pwd);
+    var newUser = {
+      id: cred.user.uid, role: 'client', prenom, phone, email,
+      birthday: bday || null, points: cfg.signupBonusPoints || 50,
+      notifications: [], createdAt: new Date().toISOString()
+    };
+    await fbSaveDoc('users', cred.user.uid, newUser);
+    window._currentUser = newUser;
+    closeModal('modal-auth');
+    updateHeaderAuth();
+    updateNavBadges();
+    renderHomeScreen();
+    toast('Compte cree ! Bienvenue ' + prenom + ' 🌴', 'success');
+  } catch(e) {
+    if (e.code === 'auth/email-already-in-use') {
+      showErr('rg-email-err', 'Email deja utilise');
+    } else {
+      toast('Erreur: ' + e.message, 'error');
+    }
+  }
+}
+
+async function doLogout() {
+  await window.firebaseFns.signOut(window.firebaseAuth);
+  window._currentUser = null;
+  cart = [];
+  updateHeaderAuth();
+  updateNavBadges();
+  navTo('home');
+  toast('Deconnecte', 'info');
+}
+
+function showErr(id, msg) {
+  var el = document.getElementById(id);
+  if (el) { el.textContent = msg; el.classList.add('show'); }
+}
+
+// ═══════════════════════════════════════════
+// HOME SCREEN
+// ═══════════════════════════════════════════
+async function renderHomeScreen() {
+  var sc = document.getElementById('home-content');
+  if (!sc) return;
+  var cfg = _cfg || DEFAULT_CFG;
+  var products = _products || DEFAULT_PRODUCTS;
+  var user = getCurrentUser();
+  var now = new Date();
+  var cp = cfg.orderCutoffTime.split(':');
+  var cutoff = new Date(); cutoff.setHours(parseInt(cp[0]),parseInt(cp[1]),0,0);
+  var isOpen = now < cutoff;
+
+  var html = '<div style="padding-bottom:5rem">';
+  html += '<div class="hero"><div class="hero-bg"></div>'
+    + '<div class="hero-badge">🌴 Specialites Antillaises</div>'
+    + '<h1 class="hero-title">Break<br><span class="accent">Antillais</span></h1>'
+    + '<p class="hero-subtitle">Bokit · Crepes · Agoulou</p>';
+  if (user && user.role !== 'admin') {
+    html += '<p style="margin-top:.75rem;font-weight:600;position:relative">Bonjour <span style="color:var(--gold)">' + user.prenom + '</span> 👋</p>';
+  }
+  html += '<div style="margin-top:1.25rem;position:relative">'
+    + '<span class="status-badge" style="background:' + (isOpen ? 'rgba(16,185,129,.15)' : 'rgba(239,68,68,.15)') + ';color:' + (isOpen ? '#10b981' : '#ef4444') + '">'
+    + (isOpen ? '🟢 Commandes ouvertes' : '🔴 Commandes fermees') + '</span></div>'
+    + '<p class="text-sm text-muted" style="margin-top:.5rem;position:relative">Retrait ' + cfg.pickupStart + ' - ' + cfg.pickupEnd + '</p>'
+    + '</div>';
+
+  if (!user) {
+    html += '<div style="margin:0 1rem 1rem;padding:.85rem 1rem;background:rgba(212,175,55,.08);border:1px dashed rgba(212,175,55,.4);border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:.75rem">'
+      + '<div><div style="font-weight:700;font-size:.85rem;color:var(--gold)">🔧 Acces Administrateur</div>'
+      + '<div style="font-size:.72rem;color:var(--text-muted)">Connectez-vous avec votre compte admin</div></div>'
+      + '<button class="btn btn-sm" style="background:var(--gold);color:var(--dark);font-weight:700;white-space:nowrap;flex-shrink:0" onclick="showLogin()">Connexion Admin</button>'
+      + '</div>';
+  }
+
+  var cats = [
+    {key:'bokit',label:'🫓 Bokits'},
+    {key:'crepe_salee',label:'🥞 Crepes salees'},
+    {key:'crepe_sucree',label:'🍫 Crepes sucrees'},
+    {key:'agoulou',label:'🌯 Agoulou'},
+    {key:'boisson',label:'🥤 Boissons'}
+  ];
+  html += '<div class="tabs">';
+  cats.forEach(function(c, i) {
+    html += '<button class="tab-btn' + (i === 0 ? ' active' : '') + '" onclick="filterCat(\'' + c.key + '\',this)">' + c.label + '</button>';
+  });
+  html += '</div><div id="product-grid" class="product-grid">';
+  products.filter(function(p){return p.category==='bokit';}).forEach(function(p){html += productCardHTML(p);});
+  html += '</div></div>';
+  sc.innerHTML = html;
+}
+
+function filterCat(cat, btn) {
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  var grid = document.getElementById('product-grid');
+  if (!grid) return;
+  var prods = (_products||[]).filter(function(p){return p.category === cat;});
+  grid.innerHTML = prods.map(productCardHTML).join('');
+}
+
+function productCardHTML(p) {
+  var clickable = p.available && !p.comingSoon;
+  var div = document.createElement('div');
+  div.className = 'product-card' + (clickable ? '' : ' unavailable');
+  if (clickable) { div.style.cursor='pointer'; div.dataset.pid = p.id; div.setAttribute('onclick','openProduct(this.dataset.pid)'); }
+  var img = p.image
+    ? '<img src="'+p.image+'" alt="'+p.name+'" style="width:100%;height:110px;object-fit:cover;display:block">'
+    : '<div class="product-img">' + (CAT_EMOJI[p.category]||'🍽') + '</div>';
+  div.innerHTML = img
+    + (p.comingSoon ? '<span class="coming-soon-badge" style="position:absolute;top:.5rem;right:.5rem">Bientot</span>' : '')
+    + '<div class="product-info"><div class="product-name">'+p.name+'</div>'
+    + '<div class="product-desc">'+(p.description||'')+'</div>'
+    + '<div class="product-price">'+fmt(p.price)+'</div></div>';
+  return div.outerHTML;
+}
+
+// ═══════════════════════════════════════════
+// PRODUCT CONFIGURATOR
+// ═══════════════════════════════════════════
+var pendingProd = null;
+var pendingExtras = {sauces:[], crudites:[], meats:[]};
+
+function openProduct(id) {
+  var user = getCurrentUser();
+  if (!user) { toast('Connectez-vous pour commander','warning'); showLogin(); return; }
+  var prods = _products || [];
+  var p = prods.find(function(x){return x.id === id;});
+  if (!p) return;
+  getCfg().then(function(cfg) {
+    var now = new Date();
+    var cp = cfg.orderCutoffTime.split(':');
+    var cutoff = new Date(); cutoff.setHours(parseInt(cp[0]),parseInt(cp[1]),0,0);
+    if (now >= cutoff) { toast('Commandes fermees apres ' + cfg.orderCutoffTime,'warning'); return; }
+    pendingProd = p;
+    pendingExtras = {sauces:[], crudites:[], meats:[]};
+    var meatCount = getMeatCount(p);
+    var needsConfig = ['bokit','crepe_salee','agoulou'].indexOf(p.category) >= 0;
+    var html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal(\'modal-product\')">'
+      + '<div class="modal"><div class="modal-handle"></div>'
+      + '<div style="font-size:2.5rem;text-align:center;margin-bottom:.5rem">' + (CAT_EMOJI[p.category]||'🍽') + '</div>'
+      + '<h2 class="modal-title text-center">' + p.name + '</h2>'
+      + '<p class="text-center text-muted text-sm mb-2">' + (p.description||'') + '</p>'
+      + '<div class="text-center mb-3" style="font-family:var(--font-head);font-size:1.4rem;font-weight:800;color:var(--gold)">' + fmt(p.price) + '</div>';
+    if (needsConfig) {
+      if (meatCount > 0) {
+        html += '<div class="form-group"><label class="form-label">🥩 ' + (meatCount > 1 ? meatCount + ' viandes' : 'Viande') + ' au choix</label><div class="chips-grid" id="meat-chips">';
+        MEATS.forEach(function(m){ html += '<button class="chip" data-val="'+m+'" onclick="toggleMeat(this,'+meatCount+')">'+m+'</button>'; });
+        html += '</div></div>';
+      }
+      html += '<div class="form-group"><label class="form-label">🥫 Sauce</label><div class="chips-grid" id="sauce-chips">';
+      SAUCES.forEach(function(s){ html += '<button class="chip" data-val="'+s+'" onclick="toggleSauce(this)">'+s+'</button>'; });
+      html += '</div></div>';
+      html += '<div class="form-group"><label class="form-label">🥗 Crudites</label><div class="chips-grid" id="crud-chips">';
+      CRUDITES.forEach(function(c){ html += '<button class="chip" data-val="'+c+'" onclick="toggleCrudite(this)">'+c+'</button>'; });
+      html += '</div></div>';
+    }
+    html += '<button class="btn btn-primary btn-full mt-2" onclick="addToCart()">➕ Ajouter au panier</button></div></div>';
+    var modal = document.getElementById('modal-product');
+    modal.innerHTML = html; modal.style.display = 'block';
+  });
+}
+
+function getMeatCount(p) {
+  var n = p.name.toLowerCase();
+  if (n.indexOf('4 viande') >= 0) return 4;
+  if (n.indexOf('3 viande') >= 0) return 3;
+  if (n.indexOf('2 viande') >= 0) return 2;
+  if (n.indexOf('1 viande') >= 0) return 1;
+  return 0;
+}
+function toggleMeat(btn, max) {
+  var m = btn.dataset.val;
+  var idx = pendingExtras.meats.indexOf(m);
+  if (idx >= 0) { pendingExtras.meats.splice(idx,1); btn.classList.remove('selected'); }
+  else if (pendingExtras.meats.length < max) { pendingExtras.meats.push(m); btn.classList.add('selected'); }
+  else { toast('Maximum ' + max + ' viande(s)','warning'); }
+}
+function toggleSauce(btn) {
+  document.querySelectorAll('#sauce-chips .chip').forEach(function(c){c.classList.remove('selected');});
+  pendingExtras.sauces = [btn.dataset.val];
+  btn.classList.add('selected');
+}
+function toggleCrudite(btn) {
+  var c = btn.dataset.val;
+  var isFull = c === 'Sans crudites' || c === 'Tout (salade+tomate+oignon)';
+  if (isFull) {
+    document.querySelectorAll('#crud-chips .chip').forEach(function(x){x.classList.remove('selected');});
+    pendingExtras.crudites = [c]; btn.classList.add('selected');
+  } else {
+    ['Sans crudites','Tout (salade+tomate+oignon)'].forEach(function(o){
+      var ob = Array.from(document.querySelectorAll('#crud-chips .chip')).find(function(x){return x.dataset.val===o;});
+      if (ob && ob.classList.contains('selected')) { ob.classList.remove('selected'); pendingExtras.crudites = []; }
+    });
+    var idx = pendingExtras.crudites.indexOf(c);
+    if (idx >= 0) { pendingExtras.crudites.splice(idx,1); btn.classList.remove('selected'); }
+    else { pendingExtras.crudites.push(c); btn.classList.add('selected'); }
+  }
+}
+
+function addToCart() {
+  if (!pendingProd) return;
+  var meatCount = getMeatCount(pendingProd);
+  if (meatCount > 0 && pendingExtras.meats.length < meatCount) { toast('Choisissez ' + meatCount + ' viande(s)','warning'); return; }
+  var details = [];
+  if (pendingExtras.meats.length) details.push('Viandes: ' + pendingExtras.meats.join(', '));
+  if (pendingExtras.sauces.length) details.push('Sauce: ' + pendingExtras.sauces.join(', '));
+  if (pendingExtras.crudites.length) details.push('Crudites: ' + pendingExtras.crudites.join(', '));
+  cart.push({id:genId(),productId:pendingProd.id,name:pendingProd.name,price:pendingProd.price,category:pendingProd.category,details:details.join(' | '),qty:1});
+  closeModal('modal-product'); updateNavBadges();
+  toast(pendingProd.name + ' ajoute !','success');
+  setTimeout(function(){ showUpsell(pendingProd); }, 600);
+}
+
+function showUpsell(product) {
+  if (['bokit','crepe_salee','agoulou'].indexOf(product.category) < 0) return;
+  var prods = (_products||[]).filter(function(p){return p.available && !p.comingSoon;});
+  var sweets = prods.filter(function(p){return p.category==='crepe_sucree';});
+  var drinks = prods.filter(function(p){return p.category==='boisson';});
+  var suggestions = [];
+  if (sweets.length) suggestions.push(sweets[Math.floor(Math.random()*sweets.length)]);
+  if (drinks.length) suggestions.push(drinks[Math.floor(Math.random()*drinks.length)]);
+  if (!suggestions.length) return;
+  var html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal(\'modal-product\')">'
+    + '<div class="modal"><div class="modal-handle"></div><h2 class="modal-title">On vous propose aussi 🤤</h2>'
+    + '<div style="display:flex;flex-direction:column;gap:.75rem">';
+  suggestions.forEach(function(s) {
+    html += '<div style="display:flex;align-items:center;gap:1rem;padding:.75rem;background:var(--dark3);border-radius:var(--radius-sm);border:1px solid var(--border)">'
+      + '<div style="font-size:2rem">' + (CAT_EMOJI[s.category]||'🍽') + '</div>'
+      + '<div style="flex:1"><div style="font-weight:600">'+s.name+'</div><div style="color:var(--gold);font-family:var(--font-head);font-weight:700">'+fmt(s.price)+'</div></div>'
+      + '<button class="btn btn-primary btn-sm" data-sid="'+s.id+'" onclick="quickAdd(this.dataset.sid)">+</button></div>';
+  });
+  html += '</div><button class="btn btn-secondary btn-full mt-2" onclick="closeModal(\'modal-product\')">Non merci</button></div></div>';
+  var modal = document.getElementById('modal-product');
+  modal.innerHTML = html; modal.style.display = 'block';
+}
+
+function quickAdd(id) {
+  var p = (_products||[]).find(function(x){return x.id===id;});
+  if (!p) return;
+  cart.push({id:genId(),productId:p.id,name:p.name,price:p.price,category:p.category,details:'',qty:1});
+  closeModal('modal-product'); updateNavBadges();
+  toast(p.name + ' ajoute !','success');
+}
+
+// ═══════════════════════════════════════════
+// CART
+// ═══════════════════════════════════════════
+function renderCart() {
+  var sc = document.getElementById('screen-cart');
+  if (!sc) return;
+  if (cart.length === 0) {
+    sc.innerHTML = '<div class="app-header"><span class="app-logo">Break<span>Antillais</span></span></div>'
+      + '<div class="cart-empty" style="padding-bottom:5rem"><div style="font-size:3rem;margin-bottom:1rem">🛒</div>'
+      + '<div style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:.5rem">Panier vide</div>'
+      + '<p class="text-muted text-sm mb-2">Ajoutez des produits pour commander</p>'
+      + '<button class="btn btn-primary" onclick="navTo(\'home\')">Voir le menu</button></div>';
+    return;
+  }
+  getCfg().then(function(cfg) {
+    var total = cart.reduce(function(s,i){return s+i.price*i.qty;},0);
+    var pts = Math.floor(total) * (cfg.pointsPerEuro||10);
+    var html = '<div class="app-header"><span class="app-logo">Break<span>Antillais</span></span>'
+      + '<button class="btn btn-sm btn-danger" onclick="clearCart()">Vider</button></div>'
+      + '<div style="padding:1rem 1rem 5rem">'
+      + '<h2 class="font-head fw-700 mb-2" style="font-size:1.4rem">🛒 Mon panier</h2>';
+    cart.forEach(function(item) {
+      html += '<div class="cart-item"><div style="font-size:1.5rem">'+(CAT_EMOJI[item.category]||'🍽')+'</div>'
+        + '<div class="cart-item-info"><div class="cart-item-name">'+item.name+'</div>'
+        + (item.details ? '<div class="cart-item-details">'+item.details+'</div>' : '')
+        + '</div><div style="display:flex;align-items:center;gap:.5rem">'
+        + '<span class="cart-item-price">'+fmt(item.price)+'</span>'
+        + '<button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem" data-cid="'+item.id+'" onclick="removeFromCart(this.dataset.cid)">✕</button>'
+        + '</div></div>';
+    });
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 0;font-family:var(--font-head);font-size:1.2rem;font-weight:700">'
+      + '<span>Total</span><span style="color:var(--gold)">'+fmt(total)+'</span></div>'
+      + '<div class="card mb-2" style="background:rgba(26,107,60,.1);border-color:rgba(26,107,60,.3)">'
+      + '<div class="text-sm" style="color:#2d9e5f">🎁 Cette commande vous rapportera <strong>+'+pts+' points</strong> lors du retrait</div></div>'
+      + '<button class="btn btn-primary btn-full" onclick="showCheckout()" style="font-size:1rem;padding:1rem">Choisir l\'heure de retrait →</button>'
+      + '</div>';
+    sc.innerHTML = html;
+  });
+}
+
+function clearCart() { if(!confirm('Vider le panier ?')) return; cart=[]; updateNavBadges(); renderCart(); }
+function removeFromCart(id) { cart=cart.filter(function(i){return i.id!==id;}); updateNavBadges(); renderCart(); }
+
+// ═══════════════════════════════════════════
+// CHECKOUT
+// ═══════════════════════════════════════════
+async function showCheckout() {
+  var today = new Date().toISOString().split('T')[0];
+  var cfg = await getCfg();
+  var slots = getSlots(today, cfg);
+  var total = cart.reduce(function(s,i){return s+i.price*i.qty;},0);
+  var html = '<div class="modal-overlay"><div class="modal"><div class="modal-handle"></div>'
+    + '<h2 class="modal-title">⏰ Heure de retrait</h2>'
+    + '<p class="text-sm text-muted mb-2">' + cfg.pickupAddress + '</p>'
+    + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.5rem">';
+  slots.forEach(function(s) {
+    html += '<button class="slot-btn' + (!s.available ? ' full' : '') + '"'
+      + (s.available ? ' data-time="'+s.time+'" onclick="selectSlot(this)"' : ' disabled') + '>' + s.time + '</button>';
+  });
+  html += '</div><div id="slot-info" class="text-center text-muted text-sm mt-1 mb-2"></div>'
+    + '<div style="height:1px;background:var(--border);margin:1.25rem 0"></div>'
+    + '<h3 class="fw-700 mb-2">💳 Mode de reglement</h3>'
+    + '<div class="payment-option" id="pay-card" onclick="selectPayment(\'card\')">'
+    + '<span style="font-size:1.8rem">💳</span><div><div class="fw-700">Carte bancaire</div><div class="text-sm text-muted">Paiement au retrait</div></div></div>'
+    + '<div class="payment-option" id="pay-cash" onclick="selectPayment(\'cash\')">'
+    + '<span style="font-size:1.8rem">💵</span><div><div class="fw-700">Especes</div><div class="text-sm text-muted">Paiement au retrait</div></div></div>'
+    + '<div style="display:flex;justify-content:space-between;padding:1rem 0;font-family:var(--font-head);font-weight:700">'
+    + '<span>Total</span><span style="color:var(--gold)">' + fmt(total) + '</span></div>'
+    + '<button class="btn btn-primary btn-full" id="confirm-btn" onclick="confirmOrder()" disabled>Valider la commande</button>'
+    + '<button class="btn btn-secondary btn-full mt-1" onclick="closeModal(\'modal-product\')">Annuler</button></div></div>';
+  var modal = document.getElementById('modal-product');
+  modal.innerHTML = html; modal.style.display = 'block';
+  window._slot = null; window._payment = null;
+}
+
+function getSlots(date, cfg) {
+  var slots = [];
+  var sp = cfg.pickupStart.split(':'), ep = cfg.pickupEnd.split(':');
+  var sh = parseInt(sp[0]), sm = parseInt(sp[1]);
+  var eh = parseInt(ep[0]), em = parseInt(ep[1]);
+  var overrides = JSON.parse(localStorage.getItem('ba_slots')||'{}');
+  var dayOrders = _orders.filter(function(o){return o.pickupDate===date && o.status!=='cancelled';});
+  while (sh*60+sm < eh*60+em) {
+    var key = (sh<10?'0':'')+sh+':'+(sm<10?'0':'')+sm;
+    var oKey = date + '_' + key;
+    var maxSlot = overrides[oKey] !== undefined ? overrides[oKey] : cfg.maxOrdersPerSlot;
+    var count = dayOrders.filter(function(o){return o.pickupTime===key;}).length;
+    slots.push({time:key, max:maxSlot, count:count, available:count<maxSlot});
+    sm += 30; if (sm >= 60) { sh++; sm -= 60; }
+  }
+  return slots;
+}
+
+function selectSlot(btn) {
+  document.querySelectorAll('.slot-btn').forEach(function(b){b.classList.remove('selected');});
+  btn.classList.add('selected');
+  window._slot = btn.dataset.time;
+  var info = document.getElementById('slot-info');
+  if (info) info.textContent = 'Creneau selectionne : ' + window._slot;
+  checkConfirmReady();
+}
+function selectPayment(m) {
+  document.querySelectorAll('.payment-option').forEach(function(b){b.classList.remove('selected');});
+  document.getElementById('pay-' + m).classList.add('selected');
+  window._payment = m;
+  checkConfirmReady();
+}
+function checkConfirmReady() {
+  var btn = document.getElementById('confirm-btn');
+  if (btn) btn.disabled = !(window._slot && window._payment);
+}
+
+async function confirmOrder() {
+  var user = getCurrentUser();
+  if (!user || !window._slot || !window._payment) return;
+  var today = new Date().toISOString().split('T')[0];
+  var total = cart.reduce(function(s,i){return s+i.price*i.qty;},0);
+  var cfg = await getCfg();
+  var orderId = genId();
+  var orderNum = String(_orders.length + 1).padStart(4,'0');
+  var order = {
+    id: orderId, orderNumber: orderNum,
+    userId: user.id, userPrenom: user.prenom, userPhone: user.phone,
+    items: cart.slice(), total, pickupDate: today, pickupTime: window._slot,
+    payment: window._payment === 'card' ? 'Carte bancaire' : 'Especes',
+    status: 'pending',
+    statusHistory: [{status:'pending', at:new Date().toISOString()}],
+    createdAt: new Date().toISOString(), pointsAwarded: false
+  };
+  await saveOrder(order);
+  cart = []; closeModal('modal-product'); updateNavBadges();
+  // Auto-confirm after 2s
+  setTimeout(async function() {
+    order.status = 'confirmed';
+    order.statusHistory.push({status:'confirmed', at:new Date().toISOString()});
+    await saveOrder(order);
+    await notify(user.id, '✅ Commande validee !', 'Votre commande n°' + orderNum + ' est confirmee. Retrait a ' + order.pickupTime + '.');
+  }, 2000);
+  showOrderConfirmation(order, cfg);
+}
+
+async function showOrderConfirmation(order, cfg) {
+  if (!cfg) cfg = await getCfg();
+  var pts = Math.floor(order.total) * (cfg.pointsPerEuro||10);
+  var itemsText = order.items.map(function(i){return '- ' + i.name + (i.details?' ('+i.details+')':'') + ' : ' + fmt(i.price);}).join('\n');
+  var summary = cfg.orderConfirmMessage
+    .replace('{prenom}', order.userPrenom)
+    .replace('{orderNumber}', order.orderNumber)
+    .replace('{items}', itemsText)
+    .replace('{total}', fmt(order.total))
+    .replace('{pickupTime}', order.pickupTime)
+    .replace('{address}', cfg.pickupAddress)
+    .replace('{payment}', order.payment);
+  var html = '<div class="modal-overlay"><div class="modal">'
+    + '<div style="text-align:center;font-size:3rem;margin-bottom:.5rem">🎉</div>'
+    + '<h2 class="modal-title text-center">Commande confirmee !</h2>'
+    + '<div class="card mb-2" style="background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.3)">'
+    + '<div class="fw-700 mb-1">Commande n°' + order.orderNumber + '</div>'
+    + '<div class="text-sm">' + order.items.map(function(i){return i.name;}).join(', ') + '</div>'
+    + '<div style="height:1px;background:var(--border);margin:.75rem 0"></div>'
+    + '<div style="display:flex;justify-content:space-between"><span class="text-muted text-sm">Retrait</span><span class="fw-700">'+order.pickupTime+'</span></div>'
+    + '<div style="display:flex;justify-content:space-between;margin-top:.25rem"><span class="text-muted text-sm">Total</span><span class="fw-700 text-gold">'+fmt(order.total)+'</span></div>'
+    + '<div style="display:flex;justify-content:space-between;margin-top:.25rem"><span class="text-muted text-sm">Reglement</span><span class="fw-700">'+order.payment+'</span></div>'
+    + '</div><div class="card mb-2" style="background:rgba(26,107,60,.1);border-color:rgba(26,107,60,.3)">'
+    + '<div class="text-sm" style="color:#2d9e5f">🎁 <strong>+' + pts + ' points</strong> seront ajoutes lors du retrait</div></div>'
+    + '<details class="mb-2"><summary class="text-sm text-muted" style="cursor:pointer;margin-bottom:.5rem">📩 Message de confirmation</summary>'
+    + '<pre style="white-space:pre-wrap;font-size:.78rem;font-family:var(--font-body);color:var(--text-muted);background:var(--dark3);padding:.75rem;border-radius:8px">'+summary+'</pre></details>'
+    + '<button class="btn btn-primary btn-full" onclick="closeModal(\'modal-product\');navTo(\'orders\')">Suivre ma commande</button>'
+    + '</div></div>';
+  var modal = document.getElementById('modal-product');
+  modal.innerHTML = html; modal.style.display = 'block';
+}
+
+// ═══════════════════════════════════════════
+// ORDERS
+// ═══════════════════════════════════════════
+function renderOrders() {
+  var sc = document.getElementById('screen-orders');
+  if (!sc) return;
+  var user = getCurrentUser();
+  if (!user) {
+    sc.innerHTML = '<div class="app-header"><span class="app-logo">Break<span>Antillais</span></span></div>'
+      + '<div class="cart-empty" style="padding-bottom:5rem"><div style="font-size:3rem;margin-bottom:1rem">📦</div>'
+      + '<div style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:.5rem">Mes commandes</div>'
+      + '<p class="text-muted text-sm mb-2">Connectez-vous pour voir vos commandes</p>'
+      + '<button class="btn btn-primary" onclick="showLogin()">Se connecter</button></div>';
+    return;
+  }
+  var orders = _orders.filter(function(o){return o.userId===user.id;});
+  var html = '<div class="app-header"><span class="app-logo">Break<span>Antillais</span></span></div>'
+    + '<div style="padding:1rem 1rem 5rem"><h2 class="font-head fw-700 mb-2" style="font-size:1.4rem">📦 Mes commandes</h2>';
+  if (orders.length === 0) {
+    html += '<div class="text-center text-muted" style="padding:3rem 0">Aucune commande pour le moment</div>';
+  } else {
+    orders.forEach(function(o){ html += orderCardHTML(o); });
+  }
+  html += '</div>';
+  sc.innerHTML = html;
+}
+
+function orderCardHTML(o) {
+  var st = STATUS_INFO[o.status] || STATUS_INFO.pending;
+  var steps = ['confirmed','preparing','ready','picked_up'];
+  var stepLabels = {confirmed:'Validee',preparing:'En prep.',ready:'Prete',picked_up:'Recuperee'};
+  var curIdx = steps.indexOf(o.status);
+  var html = '<div class="card mb-2">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">'
+    + '<span class="fw-700 font-head">N°'+o.orderNumber+'</span>'
+    + '<span class="status-badge" style="background:'+st.color+'22;color:'+st.color+'">'+st.icon+' '+st.label+'</span></div>'
+    + '<div class="text-sm text-muted mb-1">'+new Date(o.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})+'</div>'
+    + '<div class="text-sm mb-1">'+o.items.map(function(i){return i.name;}).join(', ')+'</div>'
+    + '<div class="text-sm fw-700 text-gold">'+fmt(o.total)+' · '+o.payment+'</div>'
+    + '<div class="text-sm mt-1">⏰ Retrait a '+o.pickupTime+'</div>';
+  if (curIdx >= 0) {
+    html += '<div style="height:1px;background:var(--border);margin:.75rem 0"></div><div style="display:flex;overflow-x:auto;padding:.25rem 0">';
+    steps.forEach(function(s,i){
+      html += '<div style="flex:1;text-align:center;min-width:65px">'
+        + '<div style="width:26px;height:26px;border-radius:50%;background:'+(i<=curIdx?'var(--green)':'var(--dark4)')+';border:2px solid '+(i<=curIdx?'var(--green)':'var(--border)')+';margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:.75rem">'
+        + (i<=curIdx?'✓':'') + '</div>'
+        + '<div style="font-size:.62rem;color:'+(i<=curIdx?'var(--text)':'var(--text-muted)')+';margin-top:.25rem;line-height:1.2">'+stepLabels[s]+'</div></div>';
+    });
+    html += '</div>';
+  }
+  if (o.pointsAwarded) html += '<div class="text-sm mt-1" style="color:#2d9e5f">✅ Points ajoutes</div>';
+  html += '</div>';
+  return html;
+}
+
+// ═══════════════════════════════════════════
+// PROFILE
+// ═══════════════════════════════════════════
+async function renderProfile() {
+  var sc = document.getElementById('screen-profile');
+  if (!sc) return;
+  var user = getCurrentUser();
+  if (!user) {
+    sc.innerHTML = '<div class="app-header"><span class="app-logo">Break<span>Antillais</span></span></div>'
+      + '<div style="padding:2rem 1rem 5rem;text-align:center"><div style="font-size:4rem;margin-bottom:.75rem">👤</div>'
+      + '<h2 class="font-head fw-700" style="font-size:1.6rem">Mon Compte</h2>'
+      + '<p class="text-muted text-sm mt-1 mb-3">Connectez-vous pour acceder a votre fidelite</p>'
+      + '<button class="btn btn-primary btn-full mb-2" onclick="showLogin()">Se connecter</button>'
+      + '<button class="btn btn-outline btn-full" style="background:transparent;color:var(--gold);border:1.5px solid var(--gold)" onclick="showRegister()">Creer un compte</button></div>';
+    return;
+  }
+  if (user.role === 'admin') { sc.innerHTML = renderAdminUI(); return; }
+
+  var freshUser = await fbGetDoc('users', user.id);
+  if (freshUser) { window._currentUser = freshUser; user = freshUser; }
+  var userOrders = _orders.filter(function(o){return o.userId===user.id && o.status==='picked_up';});
+  var totalSpent = userOrders.reduce(function(s,o){return s+o.total;},0);
+  var promos = await fbGetCollection('promos');
+  var myPromos = promos.filter(function(p){return p.userId===user.id && !p.used && new Date(p.expiresAt)>new Date();});
+  var notifs = (user.notifications||[]).slice(0,5);
+  var cfg = await getCfg();
+
+  var html = '<div class="app-header"><span class="app-logo">Break<span>Antillais</span></span>'
+    + '<button class="btn btn-sm btn-secondary" onclick="doLogout()">Deconnexion</button></div>'
+    + '<div style="padding:1rem 1rem 5rem">'
+    + '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem">'
+    + '<div class="avatar" style="width:60px;height:60px;font-size:1.4rem">'+user.prenom[0].toUpperCase()+'</div>'
+    + '<div><div class="font-head fw-700" style="font-size:1.3rem">'+user.prenom+'</div>'
+    + '<div class="text-sm text-muted">'+user.email+'</div>'
+    + '<div class="text-sm text-muted">📱 '+user.phone+'</div></div></div>'
+    + '<div class="points-card mb-2"><div class="text-sm" style="opacity:.7;margin-bottom:.25rem">Mes points fidelite</div>'
+    + '<div class="points-value">'+(user.points||0)+'</div>'
+    + '<div style="font-size:.85rem;color:rgba(240,236,228,.7);margin-top:.25rem">points accumules</div>'
+    + '<div style="margin-top:.75rem;display:flex;gap:1.5rem">'
+    + '<div><div class="fw-700" style="color:#fff">'+userOrders.length+'</div><div style="font-size:.75rem;opacity:.7">commandes</div></div>'
+    + '<div><div class="fw-700" style="color:#fff">'+fmt(totalSpent)+'</div><div style="font-size:.75rem;opacity:.7">depense</div></div>'
+    + '</div></div>';
+  if (notifs.length > 0) {
+    html += '<h3 class="section-title">🔔 Notifications</h3><div class="mb-2">';
+    notifs.forEach(function(n){
+      html += '<div style="padding:.75rem;background:var(--dark3);border-radius:var(--radius-sm);margin-bottom:.5rem;border-left:3px solid '+(n.read?'var(--border)':'var(--gold)')+'">'
+        + '<div class="fw-700 text-sm">'+n.title+'</div><div class="text-sm text-muted">'+n.body+'</div>'
+        + '<div style="font-size:.72rem;color:var(--text-muted);margin-top:.2rem">'+new Date(n.at).toLocaleString('fr-FR')+'</div></div>';
+    });
+    html += '</div>';
+  }
+  if (myPromos.length > 0) {
+    html += '<h3 class="section-title">🎁 Mes offres</h3>';
+    myPromos.forEach(function(p){
+      html += '<div class="promo-card"><span class="badge-new">'+(p.type==='birthday'?'🎂 Anniversaire':'⭐ Offre')+'</span>'
+        + '<div class="fw-700">'+p.title+'</div><div class="text-sm text-muted">'+p.description+'</div>'
+        + '<div class="text-sm" style="color:var(--red);margin-top:.3rem">Expire le '+new Date(p.expiresAt).toLocaleDateString('fr-FR')+'</div></div>';
+    });
+  }
+  html += '<div style="height:1px;background:var(--border);margin:1.25rem 0"></div>'
+    + '<button class="btn btn-secondary btn-full mb-1" onclick="showCGV()">📄 Conditions generales de vente</button>'
+    + '<button class="btn btn-secondary btn-full" onclick="showRGPD()">🔒 Politique de confidentialite</button></div>';
+  sc.innerHTML = html;
+}
+
+async function showCGV() {
+  var cfg = await getCfg();
+  showTextModal('CGV', cfg.cgv||'');
+}
+async function showRGPD() {
+  var cfg = await getCfg();
+  showTextModal('Politique RGPD', cfg.rgpd||'');
+}
+function showTextModal(title, text) {
+  var html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal(\'modal-product\')">'
+    + '<div class="modal"><div class="modal-handle"></div><h2 class="modal-title">'+title+'</h2>'
+    + '<pre style="white-space:pre-wrap;font-size:.8rem;font-family:var(--font-body);color:var(--text-muted);line-height:1.6">'+text+'</pre>'
+    + '<button class="btn btn-secondary btn-full mt-2" onclick="closeModal(\'modal-product\')">Fermer</button></div></div>';
+  var modal = document.getElementById('modal-product');
+  modal.innerHTML = html; modal.style.display = 'block';
+}
+
+// ═══════════════════════════════════════════
+// ADMIN UI
+// ═══════════════════════════════════════════
+function renderAdminUI() {
+  return '<div class="app-header"><span class="app-logo">🔧 <span>Backoffice</span></span>'
+    + '<button class="btn btn-sm btn-secondary" onclick="doLogout()">Deco.</button></div>'
+    + '<div style="padding-bottom:5rem">'
+    + '<div class="admin-nav">'
+    + '<button class="admin-nav-btn active" onclick="adminTab(\'orders\',this)">📦 Commandes</button>'
+    + '<button class="admin-nav-btn" onclick="adminTab(\'products\',this)">🍽️ Produits</button>'
+    + '<button class="admin-nav-btn" onclick="adminTab(\'stats\',this)">📊 Stats</button>'
+    + '<button class="admin-nav-btn" onclick="adminTab(\'fidelity\',this)">🎁 Fidelite</button>'
+    + '<button class="admin-nav-btn" onclick="adminTab(\'config\',this)">⚙️ Config</button>'
+    + '<button class="admin-nav-btn" onclick="adminTab(\'invoices\',this)">🧾 Factures</button></div>'
+    + '<div id="admin-tab-content">' + adminOrders() + '</div></div>';
+}
+
+function adminTab(tab, btn) {
+  document.querySelectorAll('.admin-nav-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  var fns = {orders:adminOrders,products:adminProductsRender,stats:adminStats,fidelity:adminFidelity,config:adminConfigRender,invoices:adminInvoices};
+  var fn = fns[tab];
+  if (fn) {
+    var result = fn();
+    if (result && typeof result.then === 'function') {
+      result.then(function(html){document.getElementById('admin-tab-content').innerHTML=html;});
+    } else {
+      document.getElementById('admin-tab-content').innerHTML = result;
+    }
+  }
+}
+
+function adminOrders() {
+  if (!_orders.length) return '<div class="text-center text-muted" style="padding:3rem">Aucune commande</div>';
+  var nextMap = {pending:'confirmed',confirmed:'preparing',preparing:'ready',ready:'picked_up'};
+  var nextLabels = {confirmed:'✅ Valider',preparing:'👨‍🍳 En preparation',ready:'🎉 Prete',picked_up:'✅ Recuperee'};
+  var html = '<div style="padding:0 1rem"><h3 class="section-title mt-2">Commandes ('+_orders.length+')</h3>';
+  _orders.forEach(function(o) {
+    var st = STATUS_INFO[o.status] || STATUS_INFO.pending;
+    var next = nextMap[o.status];
+    html += '<div class="card mb-2">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center">'
+      + '<span class="fw-700 font-head">N°'+o.orderNumber+'</span>'
+      + '<span class="status-badge" style="background:'+st.color+'22;color:'+st.color+'">'+st.icon+' '+st.label+'</span></div>'
+      + '<div class="text-sm text-muted mt-1">'+new Date(o.createdAt).toLocaleString('fr-FR')+'</div>'
+      + '<div class="fw-700 mt-1">'+o.userPrenom+' — '+o.userPhone+'</div>'
+      + '<div class="text-sm mt-1">'+o.items.map(function(i){return i.name+(i.details?' ('+i.details+')':'');}).join(' · ')+'</div>'
+      + '<div style="display:flex;justify-content:space-between;margin-top:.5rem">'
+      + '<span class="text-gold fw-700">'+fmt(o.total)+'</span>'
+      + '<span class="text-sm text-muted">⏰ '+o.pickupTime+' · '+o.payment+'</span></div>';
+    if (next) {
+      html += '<button class="btn btn-primary btn-sm btn-full mt-2" data-oid="'+o.id+'" onclick="advanceOrder(this.dataset.oid)">Passer a : '+nextLabels[next]+'</button>';
+    }
+    if (o.status === 'pending') {
+      html += '<button class="btn btn-danger btn-sm btn-full mt-1" data-oid="'+o.id+'" onclick="cancelOrder(this.dataset.oid)">Annuler</button>';
+    }
+    html += '</div>';
+  });
+  return html + '</div>';
+}
+
+async function advanceOrder(id) {
+  var o = _orders.find(function(x){return x.id===id;});
+  if (!o) return;
+  var nextMap = {pending:'confirmed',confirmed:'preparing',preparing:'ready',ready:'picked_up'};
+  var next = nextMap[o.status];
+  if (!next) return;
+  o = Object.assign({}, o);
+  o.status = next;
+  if (!o.statusHistory) o.statusHistory = [];
+  o.statusHistory.push({status:next, at:new Date().toISOString()});
+  if (next === 'picked_up' && !o.pointsAwarded) {
+    var userData = await fbGetDoc('users', o.userId);
+    if (userData) {
+      var cfg = await getCfg();
+      var pts = Math.floor(o.total) * (cfg.pointsPerEuro||10);
+      userData.points = (userData.points||0) + pts;
+      await saveUser(userData);
+      o.pointsAwarded = true;
+      await notify(o.userId, '🎁 Points ajoutes !', '+'+pts+' points pour votre commande n°'+o.orderNumber);
+    }
+  }
+  await saveOrder(o);
+  var titleMap = {confirmed:'✅ Validee',preparing:'👨‍🍳 En preparation',ready:'🎉 Prete !',picked_up:'✅ Recuperee'};
+  var bodyMap = {
+    confirmed:'Votre commande n°'+o.orderNumber+' est confirmee. Retrait a '+o.pickupTime+'.',
+    preparing:'Votre commande n°'+o.orderNumber+' est en cours de preparation.',
+    ready:'Votre commande n°'+o.orderNumber+' est prete ! Venez la recuperer.',
+    picked_up:'Commande n°'+o.orderNumber+' recuperee. Merci ! 🌴'
+  };
+  await notify(o.userId, titleMap[next], bodyMap[next]);
+  toast('Statut mis a jour','success');
+  document.getElementById('admin-tab-content').innerHTML = adminOrders();
+}
+
+async function cancelOrder(id) {
+  if (!confirm('Annuler cette commande ?')) return;
+  var o = _orders.find(function(x){return x.id===id;});
+  if (!o) return;
+  o = Object.assign({}, o);
+  o.status = 'cancelled';
+  if (!o.statusHistory) o.statusHistory = [];
+  o.statusHistory.push({status:'cancelled', at:new Date().toISOString()});
+  await saveOrder(o);
+  await notify(o.userId, '❌ Commande annulee', 'Votre commande n°'+o.orderNumber+' a ete annulee.');
+  toast('Commande annulee','info');
+  document.getElementById('admin-tab-content').innerHTML = adminOrders();
+}
+
+async function adminProductsRender() {
+  var products = await getProducts();
+  var html = '<div style="padding:0 1rem">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin:1rem 0">'
+    + '<h3 class="font-head fw-700" style="font-size:1.2rem">Produits</h3>'
+    + '<button class="btn btn-primary btn-sm" onclick="showAddProduct()">+ Ajouter</button></div>';
+  products.forEach(function(p) {
+    html += '<div class="card mb-1" style="display:flex;align-items:center;gap:.75rem">'
+      + (p.image ? '<img src="'+p.image+'" style="width:48px;height:48px;object-fit:cover;border-radius:8px">' : '<div style="font-size:2rem;width:48px;text-align:center">'+(CAT_EMOJI[p.category]||'🍽')+'</div>')
+      + '<div style="flex:1"><div class="fw-700 text-sm">'+p.name+'</div><div class="text-sm text-gold">'+fmt(p.price)+'</div>'
+      + (p.comingSoon ? '<div style="font-size:.7rem;color:var(--red)">Prochainement</div>' : '')
+      + '</div><div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-end">'
+      + '<label style="display:flex;align-items:center;gap:.3rem;cursor:pointer;font-size:.78rem">'
+      + '<input type="checkbox"'+(p.available&&!p.comingSoon?' checked':'')+' data-pid="'+p.id+'" onchange="toggleProd(this)" style="accent-color:var(--gold)"> Dispo</label>'
+      + '<div style="display:flex;gap:.25rem">'
+      + '<button class="btn btn-sm btn-secondary" data-pid="'+p.id+'" onclick="editProduct(this.dataset.pid)" style="font-size:.7rem;padding:.3rem .5rem">&#9998;</button>'
+      + '<button class="btn btn-sm btn-danger" data-pid="'+p.id+'" onclick="deleteProd(this.dataset.pid)" style="font-size:.7rem;padding:.3rem .5rem">&#128465;</button>'
+      + '</div></div></div>';
+  });
+  return html + '</div>';
+}
+
+async function toggleProd(input) {
+  var id = input.dataset.pid;
+  var products = await getProducts();
+  var p = products.find(function(x){return x.id===id;});
+  if (p) { p.available = input.checked; await fbSaveDoc('products', id, p); _products = null; toast(p.name+' '+(input.checked?'active':'desactive'),'info'); }
+}
+
+function prodFormHTML(p) {
+  p = p || {};
+  var cats = ['bokit','crepe_salee','crepe_sucree','agoulou','boisson'];
+  var html = '<div class="form-group"><label class="form-label">Nom</label><input class="form-input" id="pf-name" value="'+(p.name||'')+'"/></div>'
+    + '<div class="form-group"><label class="form-label">Categorie</label><select class="form-select" id="pf-cat">';
+  cats.forEach(function(c){html += '<option value="'+c+'"'+(p.category===c?' selected':'')+'>'+c+'</option>';});
+  html += '</select></div><div class="form-group"><label class="form-label">Prix (€)</label><input class="form-input" id="pf-price" type="number" step="0.01" value="'+(p.price||'')+'"/></div>'
+    + '<div class="form-group"><label class="form-label">Description</label><input class="form-input" id="pf-desc" value="'+(p.description||'')+'"/></div>'
+    + '<div class="form-group"><label style="display:flex;align-items:center;gap:.5rem;cursor:pointer"><input type="checkbox" id="pf-avail"'+(p.available?' checked':'')+' style="accent-color:var(--gold)"> Disponible</label></div>'
+    + '<div class="form-group"><label style="display:flex;align-items:center;gap:.5rem;cursor:pointer"><input type="checkbox" id="pf-soon"'+(p.comingSoon?' checked':'')+' style="accent-color:var(--gold)"> Prochainement</label></div>'
+    + '<div class="form-group"><label class="form-label">Photo</label><input type="file" accept="image/*" class="form-input" id="pf-img" onchange="previewImg(this)"/>'
+    + (p.image ? '<img src="'+p.image+'" id="pf-prev" style="width:100%;height:120px;object-fit:cover;border-radius:8px;margin-top:.5rem">' : '<div id="pf-prev"></div>')
+    + '</div>';
+  return html;
+}
+
+window._newImg = null;
+function previewImg(input) {
+  var f = input.files[0]; if (!f) return;
+  var r = new FileReader();
+  r.onload = function(e) {
+    window._newImg = e.target.result;
+    var prev = document.getElementById('pf-prev');
+    if (prev) {
+      if (prev.tagName === 'IMG') { prev.src = e.target.result; }
+      else { prev.outerHTML = '<img id="pf-prev" src="'+e.target.result+'" style="width:100%;height:120px;object-fit:cover;border-radius:8px;margin-top:.5rem">'; }
+    }
+  };
+  r.readAsDataURL(f);
+}
+
+function showAddProduct() {
+  window._newImg = null;
+  var html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal(\'modal-product\')">'
+    + '<div class="modal"><div class="modal-handle"></div><h2 class="modal-title">Ajouter un produit</h2>'
+    + prodFormHTML()
+    + '<button class="btn btn-primary btn-full mt-2" onclick="saveNewProd()">Ajouter</button>'
+    + '<button class="btn btn-secondary btn-full mt-1" onclick="closeModal(\'modal-product\')">Annuler</button></div></div>';
+  var modal = document.getElementById('modal-product');
+  modal.innerHTML = html; modal.style.display = 'block';
+}
+
+async function editProduct(id) {
+  window._newImg = null;
+  var products = await getProducts();
+  var p = products.find(function(x){return x.id===id;});
+  if (!p) return;
+  var html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal(\'modal-product\')">'
+    + '<div class="modal"><div class="modal-handle"></div><h2 class="modal-title">Modifier</h2>'
+    + prodFormHTML(p)
+    + '<button class="btn btn-primary btn-full mt-2" data-pid="'+id+'" onclick="saveEditProd(this.dataset.pid)">Enregistrer</button>'
+    + '<button class="btn btn-secondary btn-full mt-1" onclick="closeModal(\'modal-product\')">Annuler</button></div></div>';
+  var modal = document.getElementById('modal-product');
+  modal.innerHTML = html; modal.style.display = 'block';
+}
+
+function getProdFormData() {
+  return {name:document.getElementById('pf-name').value.trim(),category:document.getElementById('pf-cat').value,price:parseFloat(document.getElementById('pf-price').value)||0,description:document.getElementById('pf-desc').value.trim(),available:document.getElementById('pf-avail').checked,comingSoon:document.getElementById('pf-soon').checked};
+}
+
+async function saveNewProd() {
+  var d = getProdFormData();
+  if (!d.name) { toast('Nom requis','error'); return; }
+  var newP = Object.assign({id:genId(),image:window._newImg||null}, d);
+  await fbSaveDoc('products', newP.id, newP);
+  _products = null;
+  window._newImg = null;
+  closeModal('modal-product');
+  toast('Produit ajoute !','success');
+  var html = await adminProductsRender();
+  document.getElementById('admin-tab-content').innerHTML = html;
+}
+
+async function saveEditProd(id) {
+  var d = getProdFormData();
+  var products = await getProducts();
+  var p = products.find(function(x){return x.id===id;});
+  if (p) {
+    var updated = Object.assign({}, p, d);
+    if (window._newImg) updated.image = window._newImg;
+    await fbSaveDoc('products', id, updated);
+    _products = null;
+  }
+  window._newImg = null;
+  closeModal('modal-product');
+  toast('Produit modifie !','success');
+  var html = await adminProductsRender();
+  document.getElementById('admin-tab-content').innerHTML = html;
+}
+
+async function deleteProd(id) {
+  if (!confirm('Supprimer ce produit ?')) return;
+  var products = await getProducts();
+  var filtered = products.filter(function(p){return p.id!==id;});
+  _products = filtered;
+  for (var p of filtered) { await fbSaveDoc('products', p.id, p); }
+  var db = window.firebaseDB;
+  var fns = window.firebaseFns;
+  await fns.setDoc(fns.doc(db, 'products', id), {deleted:true}, {merge:true});
+  _products = null;
+  toast('Produit supprime','info');
+  var html = await adminProductsRender();
+  document.getElementById('admin-tab-content').innerHTML = html;
+}
+
+async function adminStats() {
+  var allOrders = _orders;
+  var done = allOrders.filter(function(o){return o.status==='picked_up';});
+  var revenue = done.reduce(function(s,o){return s+o.total;},0);
+  var avg = done.length ? revenue/done.length : 0;
+  var users = await fbGetCollection('users');
+  var clients = users.filter(function(u){return u.role!=='admin';});
+  var freq = {};
+  done.forEach(function(o){o.items.forEach(function(i){freq[i.name]=(freq[i.name]||0)+1;});});
+  var sorted = Object.entries(freq).sort(function(a,b){return b[1]-a[1];}).slice(0,10);
+  var html = '<div style="padding:0 1rem">'
+    + '<h3 class="section-title mt-2">Statistiques</h3>'
+    + '<div class="stat-grid">'
+    + '<div class="stat-card"><div class="stat-value">'+fmt(revenue)+'</div><div class="stat-label">Chiffre d\'affaires</div></div>'
+    + '<div class="stat-card"><div class="stat-value">'+done.length+'</div><div class="stat-label">Commandes livrees</div></div>'
+    + '<div class="stat-card"><div class="stat-value">'+fmt(avg)+'</div><div class="stat-label">Panier moyen</div></div>'
+    + '<div class="stat-card"><div class="stat-value">'+clients.length+'</div><div class="stat-label">Clients inscrits</div></div>'
+    + '<div class="stat-card"><div class="stat-value">'+allOrders.filter(function(o){return ['pending','confirmed','preparing'].indexOf(o.status)>=0;}).length+'</div><div class="stat-label">En cours</div></div>'
+    + '<div class="stat-card"><div class="stat-value">'+allOrders.filter(function(o){return o.status==='cancelled';}).length+'</div><div class="stat-label">Annulations</div></div>'
+    + '</div>';
+  if (sorted.length) {
+    html += '<h3 class="section-title mt-1">Top produits</h3>';
+    sorted.forEach(function(e,i){
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem;background:var(--dark3);border-radius:8px;margin-bottom:.4rem">'
+        + '<span class="text-sm fw-700">'+(i+1)+'. '+e[0]+'</span><span class="text-gold fw-700">'+e[1]+'</span></div>';
+    });
+  }
+  html += '</div>';
+  return html;
+}
+
+async function adminFidelity() {
+  var cfg = await getCfg();
+  var users = await fbGetCollection('users');
+  var clients = users.filter(function(u){return u.role!=='admin';}).sort(function(a,b){return (b.points||0)-(a.points||0);});
+  var html = '<div style="padding:0 1rem">'
+    + '<h3 class="section-title mt-2">Configuration points</h3>'
+    + '<div class="card mb-2">'
+    + '<div class="form-group"><label class="form-label">Points a l\'inscription</label><input class="form-input" id="cfg-signup-pts" type="number" value="'+(cfg.signupBonusPoints||50)+'"/></div>'
+    + '<div class="form-group"><label class="form-label">Points par euro depense</label><input class="form-input" id="cfg-pts-euro" type="number" value="'+(cfg.pointsPerEuro||10)+'"/></div>'
+    + '<button class="btn btn-primary btn-sm btn-full" onclick="savePtsCfg()">Enregistrer</button></div>'
+    + '<h3 class="section-title">Creer une offre promotionnelle</h3>'
+    + '<div class="card mb-2"><div class="form-group"><label class="form-label">Type</label><select class="form-select" id="promo-type">'
+    + '<option value="limited">Offre limitee</option><option value="exclusive">Exclusive</option>'
+    + '<option value="birthday">Anniversaire</option><option value="gift">Produit offert</option></select></div>'
+    + '<div class="form-group"><label class="form-label">Titre</label><input class="form-input" id="promo-title" placeholder="Ex: -20% ce weekend"/></div>'
+    + '<div class="form-group"><label class="form-label">Description</label><input class="form-input" id="promo-desc"/></div>'
+    + '<div class="form-group"><label class="form-label">Destinataires</label><select class="form-select" id="promo-target"><option value="all">Tous les clients</option>';
+  clients.forEach(function(u){ html += '<option value="'+u.id+'">'+u.prenom+' ('+u.email+')</option>'; });
+  html += '</select></div><div class="form-group"><label class="form-label">Expiration</label><input class="form-input" id="promo-exp" type="date"/></div>'
+    + '<button class="btn btn-primary btn-sm btn-full" onclick="createPromo()">Envoyer l\'offre</button></div>'
+    + '<h3 class="section-title">Classement fidelite</h3>';
+  clients.slice(0,20).forEach(function(u, i){
+    html += '<div style="display:flex;align-items:center;gap:.75rem;padding:.6rem;background:var(--dark3);border-radius:8px;margin-bottom:.4rem">'
+      + '<div style="font-weight:700;color:var(--gold);min-width:24px">#'+(i+1)+'</div>'
+      + '<div class="avatar" style="width:32px;height:32px;font-size:.8rem">'+u.prenom[0]+'</div>'
+      + '<div style="flex:1"><div class="fw-700 text-sm">'+u.prenom+'</div><div class="text-sm text-muted">'+u.email+'</div></div>'
+      + '<div class="fw-700 text-gold">'+(u.points||0)+' pts</div>'
+      + '<button class="btn btn-sm btn-secondary" data-uid="'+u.id+'" onclick="adjPts(this.dataset.uid)" style="font-size:.7rem;padding:.3rem .5rem">✏️</button></div>';
+  });
+  return html + '</div>';
+}
+
+async function savePtsCfg() {
+  var cfg = await getCfg();
+  cfg.signupBonusPoints = parseInt(document.getElementById('cfg-signup-pts').value)||50;
+  cfg.pointsPerEuro = parseInt(document.getElementById('cfg-pts-euro').value)||10;
+  await fbSaveDoc('config','main',cfg);
+  _cfg = cfg;
+  toast('Configuration sauvegardee','success');
+}
+
+async function createPromo() {
+  var type = document.getElementById('promo-type').value;
+  var title = document.getElementById('promo-title').value.trim();
+  var desc = document.getElementById('promo-desc').value.trim();
+  var target = document.getElementById('promo-target').value;
+  var exp = document.getElementById('promo-exp').value;
+  if (!title || !exp) { toast('Titre et expiration requis','error'); return; }
+  var users = await fbGetCollection('users');
+  var targets = target === 'all' ? users.filter(function(u){return u.role!=='admin';}) : users.filter(function(u){return u.id===target;});
+  var cfg = await getCfg();
+  for (var u of targets) {
+    var expDate = type === 'birthday' ? new Date(Date.now()+(cfg.birthday_offer_days||30)*86400000).toISOString() : new Date(exp).toISOString();
+    var promo = {id:genId(),userId:u.id,type,title,description:desc,expiresAt:expDate,used:false,createdAt:new Date().toISOString()};
+    await fbSaveDoc('promos', promo.id, promo);
+    await notify(u.id,'🎁 Nouvelle offre !',title+' — '+desc);
+  }
+  toast('Offre envoyee a '+targets.length+' client(s)','success');
+}
+
+async function adjPts(userId) {
+  var pt = prompt('Ajuster les points (ex: +100 ou -50) :');
+  if (!pt) return;
+  var delta = parseInt(pt);
+  if (isNaN(delta)) { toast('Valeur invalide','error'); return; }
+  var u = await fbGetDoc('users', userId);
+  if (!u) return;
+  u.points = Math.max(0, (u.points||0)+delta);
+  await saveUser(u);
+  toast(u.prenom+' : '+u.points+' points','success');
+  adminTab('fidelity', document.querySelector('.admin-nav-btn.active'));
+}
+
+async function adminConfigRender() {
+  var cfg = await getCfg();
+  return '<div style="padding:0 1rem">'
+    + '<h3 class="section-title mt-2">Parametres generaux</h3>'
+    + '<div class="card mb-2">'
+    + '<div class="form-group"><label class="form-label">Heure limite de commande</label><input class="form-input" id="cfg-cutoff" type="time" value="'+cfg.orderCutoffTime+'"/></div>'
+    + '<div class="form-group"><label class="form-label">Ouverture retrait</label><input class="form-input" id="cfg-open" type="time" value="'+cfg.pickupStart+'"/></div>'
+    + '<div class="form-group"><label class="form-label">Fermeture retrait</label><input class="form-input" id="cfg-close" type="time" value="'+cfg.pickupEnd+'"/></div>'
+    + '<div class="form-group"><label class="form-label">Adresse de retrait</label><input class="form-input" id="cfg-addr" value="'+cfg.pickupAddress+'"/></div>'
+    + '<div class="form-group"><label class="form-label">Max commandes par demi-heure</label><input class="form-input" id="cfg-slots" type="number" value="'+cfg.maxOrdersPerSlot+'"/></div>'
+    + '<button class="btn btn-primary btn-sm btn-full" onclick="saveGenCfg()">Enregistrer</button></div>'
+    + '<h3 class="section-title">Message recapitulatif</h3>'
+    + '<div class="card mb-2">'
+    + '<div class="form-group"><label class="form-label">Modele</label>'
+    + '<textarea class="form-textarea" id="cfg-msg" style="min-height:160px">'+cfg.orderConfirmMessage+'</textarea>'
+    + '<div style="color:var(--text-muted);font-size:.8rem">Variables: {prenom} {orderNumber} {items} {total} {pickupTime} {address} {payment}</div></div>'
+    + '<button class="btn btn-primary btn-sm btn-full" onclick="saveMsgCfg()">Enregistrer</button></div>'
+    + '<h3 class="section-title">Textes legaux</h3>'
+    + '<div class="card mb-2">'
+    + '<div class="form-group"><label class="form-label">CGV</label><textarea class="form-textarea" id="cfg-cgv" style="min-height:100px">'+cfg.cgv+'</textarea></div>'
+    + '<div class="form-group"><label class="form-label">RGPD</label><textarea class="form-textarea" id="cfg-rgpd" style="min-height:100px">'+cfg.rgpd+'</textarea></div>'
+    + '<button class="btn btn-primary btn-sm btn-full" onclick="saveLegalCfg()">Enregistrer</button></div></div>';
+}
+
+async function saveGenCfg() {
+  var cfg = await getCfg();
+  cfg.orderCutoffTime = document.getElementById('cfg-cutoff').value;
+  cfg.pickupStart = document.getElementById('cfg-open').value;
+  cfg.pickupEnd = document.getElementById('cfg-close').value;
+  cfg.pickupAddress = document.getElementById('cfg-addr').value;
+  cfg.maxOrdersPerSlot = parseInt(document.getElementById('cfg-slots').value)||8;
+  await fbSaveDoc('config','main',cfg); _cfg = cfg;
+  toast('Configuration enregistree','success');
+}
+async function saveMsgCfg() {
+  var cfg = await getCfg();
+  cfg.orderConfirmMessage = document.getElementById('cfg-msg').value;
+  await fbSaveDoc('config','main',cfg); _cfg = cfg;
+  toast('Message sauvegarde','success');
+}
+async function saveLegalCfg() {
+  var cfg = await getCfg();
+  cfg.cgv = document.getElementById('cfg-cgv').value;
+  cfg.rgpd = document.getElementById('cfg-rgpd').value;
+  await fbSaveDoc('config','main',cfg); _cfg = cfg;
+  toast('Textes legaux sauvegardes','success');
+}
+
+function adminInvoices() {
+  var orders = _orders.filter(function(o){return o.status!=='cancelled';});
+  var html = '<div style="padding:0 1rem">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin:1rem 0">'
+    + '<h3 class="font-head fw-700">Factures ('+orders.length+')</h3>'
+    + '<button class="btn btn-primary btn-sm" onclick="exportCSV()">📥 Export CSV</button></div>';
+  orders.forEach(function(o){
+    html += '<div class="card mb-1" style="display:flex;justify-content:space-between;align-items:center">'
+      + '<div><div class="fw-700 text-sm">Facture N°'+o.orderNumber+'</div>'
+      + '<div class="text-sm text-muted">'+new Date(o.createdAt).toLocaleDateString('fr-FR')+' · '+o.userPrenom+'</div>'
+      + '<div class="text-sm text-gold">'+fmt(o.total)+'</div></div>'
+      + '<button class="btn btn-secondary btn-sm" data-oid="'+o.id+'" onclick="viewInvoice(this.dataset.oid)">Voir</button></div>';
+  });
+  return html + '</div>';
+}
+
+async function viewInvoice(id) {
+  var o = _orders.find(function(x){return x.id===id;});
+  if (!o) return;
+  var cfg = await getCfg();
+  var itemsHTML = o.items.map(function(i){return '<tr><td>'+i.name+(i.details?' ('+i.details+')':'')+'</td><td style="text-align:right">'+fmt(i.price)+'</td></tr>';}).join('');
+  var html = '<div class="modal-overlay" onclick="if(event.target===this)closeModal(\'modal-product\')">'
+    + '<div class="modal"><div class="modal-handle"></div><h2 class="modal-title">Facture N°'+o.orderNumber+'</h2>'
+    + '<div class="card" style="background:var(--dark3)">'
+    + '<div class="fw-700 mb-1">Break Antillais</div><div class="text-sm text-muted">'+cfg.pickupAddress+'</div>'
+    + '<div style="height:1px;background:var(--border);margin:.75rem 0"></div>'
+    + '<div style="display:flex;justify-content:space-between;margin-bottom:.25rem"><span class="text-sm text-muted">Client</span><span class="text-sm">'+o.userPrenom+' · '+o.userPhone+'</span></div>'
+    + '<div style="display:flex;justify-content:space-between;margin-bottom:.25rem"><span class="text-sm text-muted">Date</span><span class="text-sm">'+new Date(o.createdAt).toLocaleString('fr-FR')+'</span></div>'
+    + '<div style="display:flex;justify-content:space-between;margin-bottom:.25rem"><span class="text-sm text-muted">Retrait</span><span class="text-sm">'+o.pickupTime+'</span></div>'
+    + '<div style="height:1px;background:var(--border);margin:.75rem 0"></div>'
+    + '<table style="width:100%;font-size:.85rem">'+itemsHTML+'</table>'
+    + '<div style="height:1px;background:var(--border);margin:.75rem 0"></div>'
+    + '<div style="display:flex;justify-content:space-between;font-weight:700"><span>TOTAL</span><span style="color:var(--gold)">'+fmt(o.total)+'</span></div>'
+    + '<div class="text-sm text-muted mt-1">Reglement : '+o.payment+'</div></div>'
+    + '<button class="btn btn-secondary btn-full mt-2" onclick="closeModal(\'modal-product\')">Fermer</button></div></div>';
+  var modal = document.getElementById('modal-product');
+  modal.innerHTML = html; modal.style.display = 'block';
+}
+
+function exportCSV() {
+  var orders = _orders.filter(function(o){return o.status!=='cancelled';});
+  var csv = 'N Facture,Date,Client,Telephone,Articles,Total,Reglement,Statut\n';
+  orders.forEach(function(o){
+    var items = o.items.map(function(i){return i.name;}).join(' | ');
+    csv += o.orderNumber+',"'+new Date(o.createdAt).toLocaleString('fr-FR')+'","'+o.userPrenom+'","'+o.userPhone+'","'+items+'",'+o.total.toFixed(2)+',"'+o.payment+'","'+o.status+'"\n';
+  });
+  var blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'break-antillais-factures-'+new Date().toISOString().split('T')[0]+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast('Export telecharge','success');
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+window.onAuthReady = async function(user) {
+  updateHeaderAuth();
+  updateNavBadges();
+  // Show app immediately with defaults, load Firebase data in background
+  _cfg = DEFAULT_CFG;
+  _products = DEFAULT_PRODUCTS;
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('screen-home').style.display = 'block';
+  // Subscribe to orders in real-time
+  subscribeOrders(function(orders) {
+    _orders = orders;
+    if (currentScreen === 'orders') renderOrders();
+    if (currentScreen === 'profile' && getCurrentUser() && getCurrentUser().role === 'admin') {
+      document.getElementById('admin-tab-content').innerHTML = adminOrders();
+    }
+    updateNavBadges();
+  });
+  subscribeConfig(function(cfg) {
+    _cfg = cfg;
+  });
+  await renderHomeScreen();
+};
+
+// Hard timeout: show app after 3 seconds NO MATTER WHAT
+setTimeout(function() {
+  var ls = document.getElementById('loading-screen');
+  if (ls && ls.style.display !== 'none') {
+    console.log('Timeout: forcing app display');
+    _cfg = DEFAULT_CFG;
+    _products = DEFAULT_PRODUCTS;
+    ls.style.display = 'none';
+    var sh = document.getElementById('screen-home');
+    if (sh) sh.style.display = 'block';
+    updateHeaderAuth();
+    renderHomeScreen();
+    if (window.firebaseDB && window.firebaseFns) {
+      subscribeOrders(function(orders){_orders=orders;updateNavBadges();});
+    }
+  }
+}, 3000);
+
+document.addEventListener('firebaseReady', function() {
+  // Firebase module loaded, auth listener will call onAuthReady
+  // Hard fallback already handled above
+});
+</script>
+</body>
+</html>
