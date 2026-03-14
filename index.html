@@ -22,7 +22,7 @@
 
   // ⬇️ COLLEZ VOS CLÉS FIREBASE ICI (voir guide d'installation)
   const firebaseConfig = {
-    apiKey: "AIzaSyDdMXomLpSXhca5lLUldGHRtUi0k7mXWTY",
+    apiKey: "AIzaSyBKB0cuAkaxMBx9LetqUZb-mvd08sCxZs4",
     authDomain: "application-break-antillais.firebaseapp.com",
     databaseURL: "https://application-break-antillais-default-rtdb.europe-west1.firebasedatabase.app",
     projectId: "application-break-antillais",
@@ -532,6 +532,10 @@ async function doLogin() {
   var err = document.getElementById('li-err');
   if (!email || !pwd) { if(err){err.textContent='Champs requis';err.classList.add('show');} return; }
   try {
+    if (!window.firebaseFns || !window.firebaseAuth) {
+      if(err){err.textContent='Firebase non pret, rechargez la page';err.classList.add('show');}
+      return;
+    }
     var cred = await window.firebaseFns.signInWithEmailAndPassword(window.firebaseAuth, email, pwd);
     var userData = await fbGetDoc('users', cred.user.uid);
     if (!userData) { if(err){err.textContent='Compte introuvable';err.classList.add('show');} return; }
@@ -542,7 +546,12 @@ async function doLogin() {
     renderHomeScreen();
     toast('Bienvenue ' + userData.prenom + ' ! 🌴', 'success');
   } catch(e) {
-    if (err) { err.textContent = 'Email ou mot de passe incorrect'; err.classList.add('show'); }
+    console.error('Login error:', e.code, e.message);
+    var msg = 'Email ou mot de passe incorrect';
+    if (e.code === 'auth/network-request-failed') msg = 'Erreur reseau - verifiez votre connexion';
+    if (e.code === 'auth/too-many-requests') msg = 'Trop de tentatives, reessayez plus tard';
+    if (e.code === 'auth/api-key-not-valid') msg = 'Erreur configuration Firebase (API key)';
+    if (err) { err.textContent = msg + ' (' + (e.code||e.message) + ')'; err.classList.add('show'); }
   }
 }
 
