@@ -25,9 +25,9 @@ const firebaseConfig = {
   appId: "1:788821898426:web:0de8466a653123ea407e83"
 };
 firebase.initializeApp(firebaseConfig);
-const _db = _db;
+var _db = firebase.firestore();
 _db.settings({ experimentalForceLongPolling: true, merge: true });
-const _auth = _auth;
+var _auth = firebase.auth();
 
 _auth.onAuthStateChanged(async function(user) {
   if (user) {
