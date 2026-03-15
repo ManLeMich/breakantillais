@@ -26,13 +26,13 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 var _db = firebase.firestore();
-_db.settings({ experimentalForceLongPolling: true, merge: true });
+firebase.firestore().settings({ experimentalAutoDetectLongPolling: true, merge: true });
 var _auth = firebase.auth();
 
-_auth.onAuthStateChanged(async function(user) {
+firebase.auth().onAuthStateChanged(async function(user) {
   if (user) {
     try {
-      var snap = await _db.collection('users').doc(user.uid).get();
+      var snap = await firebase.firestore().collection('users').doc(user.uid).get();
       window._currentUser = snap.exists ? {id: user.uid, ...snap.data()} : null;
     } catch(e) {
       console.warn('Auth state error:', e.message);
@@ -329,13 +329,13 @@ function getCurrentUser(){
 }
 
 async function fbSaveDoc(collection, id, data) {
-  await _db.collection(collection).doc(id).set(data, {merge: true});
+  await firebase.firestore().collection(collection).doc(id).set(data, {merge: true});
 }
 
 async function fbGetDoc(col, id) {
   for (var attempt = 0; attempt < 3; attempt++) {
     try {
-      var snap = await _db.collection(col).doc(id).get();
+      var snap = await firebase.firestore().collection(col).doc(id).get();
       return snap.exists ? {id: snap.id, ...snap.data()} : null;
     } catch(e) {
       console.warn('fbGetDoc attempt', attempt, e.message);
@@ -349,7 +349,7 @@ async function fbGetDoc(col, id) {
 async function fbGetCollection(col) {
   for (var attempt = 0; attempt < 3; attempt++) {
     try {
-      var snap = await _db.collection(col).get();
+      var snap = await firebase.firestore().collection(col).get();
       var results = [];
       snap.forEach(function(d){results.push({id: d.id, ...d.data()});});
       return results;
@@ -399,7 +399,7 @@ async function saveUser(user) {
 // Subscribe to orders in real-time
 function subscribeOrders(callback) {
   if (_unsubOrders) _unsubOrders();
-  _unsubOrders = _db.collection('orders')
+  _unsubOrders = firebase.firestore().collection('orders')
     .orderBy('createdAt', 'desc')
     .onSnapshot(function(snap) {
       _orders = [];
@@ -410,7 +410,7 @@ function subscribeOrders(callback) {
 
 function subscribeConfig(callback) {
   if (_unsubCfg) _unsubCfg();
-  _unsubCfg = _db.collection('config').doc('main')
+  _unsubCfg = firebase.firestore().collection('config').doc('main')
     .onSnapshot(function(snap) {
       if (snap.exists) {
         _cfg = snap.data();
@@ -442,7 +442,7 @@ async function loadUserPromos(userId) {
   var banner = document.getElementById('promo-banner');
   if (!banner) return;
   try {
-    var snap = await _db.collection('promos')
+    var snap = await firebase.firestore().collection('promos')
       .where('userId', '==', userId)
       .get();
     var promos = [];
@@ -579,7 +579,7 @@ async function doForgotPwd() {
   var email = document.getElementById('fp-email').value.trim();
   if (!email) { showErr('fp-err', 'Email requis'); return; }
   try {
-    await _auth.sendPasswordResetEmail(email);
+    await firebase.auth().sendPasswordResetEmail(email);
     toast('Email de reinitialisation envoye a ' + email, 'success', 5000);
     closeModal('modal-auth');
   } catch(e) {
@@ -593,7 +593,7 @@ async function doLogin() {
   var err = document.getElementById('li-err');
   if (!email || !pwd) { if(err){err.textContent='Champs requis';err.classList.add('show');} return; }
   try {
-    var cred = await _auth.signInWithEmailAndPassword(email, pwd);
+    var cred = await firebase.auth().signInWithEmailAndPassword(email, pwd);
     var userData = await fbGetDoc('users', cred.user.uid);
     if (!userData) { if(err){err.textContent='Compte introuvable en base';err.classList.add('show');} return; }
     window._currentUser = userData;
@@ -633,7 +633,7 @@ async function doRegister() {
   if (!ok) return;
   try {
     var cfg = await getCfg();
-    var cred = await _auth.createUserWithEmailAndPassword(email, pwd);
+    var cred = await firebase.auth().createUserWithEmailAndPassword(email, pwd);
     var newUser = {
       id: cred.user.uid, role: 'client', prenom, phone, email,
       birthday: bday || null, points: cfg.signupBonusPoints || 50,
@@ -656,7 +656,7 @@ async function doRegister() {
 }
 
 async function doLogout() {
-  await _auth.signOut();
+  await firebase.auth().signOut();
   window._currentUser = null;
   cart = [];
   updateHeaderAuth();
